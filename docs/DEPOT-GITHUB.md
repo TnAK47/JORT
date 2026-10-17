@@ -32,3 +32,24 @@ secrets.
 
 Les données et PDF restent dans les stockages dédiés : PostgreSQL, Google Drive
 ou stockage objet. GitHub sert au code, aux tests et à la documentation.
+
+## Sauvegarde et import de la base initiale
+
+La base PostgreSQL est sauvegardée séparément dans
+`G:\\Mon Drive\\JORT\\sauvegardes-base\\postgresql`. Chaque archive `.dump` est
+accompagnée d'un manifeste JSON avec son empreinte SHA-256 et ses compteurs.
+
+```powershell
+.\\sauvegarder-base-google.ps1
+```
+
+Pour préparer une nouvelle machine, clonez le dépôt, initialisez PostgreSQL
+avec les scripts JORT, copiez l'archive depuis Drive, arrêtez JORT, puis lancez
+la restauration explicite :
+
+```powershell
+.\\restaurer-base-postgresql.ps1 -BackupPath 'G:\\Mon Drive\\JORT\\sauvegardes-base\\postgresql\\jort-postgresql-AAAAMMJJ-HHMMSS.dump' -Replace
+```
+
+L'archive de données reste hors du dépôt GitHub. `-Replace` évite tout
+remplacement accidentel de la base locale.
