@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+require('../dist/recherche.js');
+const rank = JORT_SEARCH.prepare('Hédi Karim Sellami');
+assert(rank(['Hedi Karim Sellami']).score > rank(['Karim Hedi Sellami']).score);
+assert(rank(['Karim Hedi Sellami']).score > rank(['Hedi Sellami']).score);
+assert(rank(['Hedi Sellami']).score > rank(['Sellami']).score);
+assert.equal(rank(['personne sans correspondance']).score, 0);
+assert.equal(JORT_SEARCH.prepare('Hedi Sellami')(['Hedi Karim Sellami']).kind, 'ordered');
+assert.equal(JORT_SEARCH.prepare('karim hedi sellami')(['Hédi Karim Sellami']).matched, 3);
+assert.equal(JORT_SEARCH.prepare('Hedi Sellami',true)(['Hedi Karim Sellami']).score, 0);
+assert.equal(JORT_SEARCH.prepare('ASSAD',true)(['Lassad']).score, 0);
+assert.equal(JORT_SEARCH.prepare('ASSAD',true)(['Société Assad']).matched, 1);
+assert.equal(JORT_SEARCH.prepare('Hedi Karim',false)(['Hedi','Karim']).matched, 1);
+console.log('Recherche : 10 contrôles réussis.');

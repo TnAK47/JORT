@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102b3b">
+  <title>JORT — Entités et connexions</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="interface.css">
+  <link rel="stylesheet" href="exploration.css">
+  <link rel="stylesheet" href="atelier.css">
+</head>
+<body class="public-app">
+  <a class="skip-link" href="#accueil">Aller au contenu</a>
+  <header class="topbar">
+    <a class="brand" href="#accueil" aria-label="JORT, accueil"><span class="brand-mark">J.</span><span><strong>JORT</strong><small>Atlas documentaire</small></span></a>
+    <div class="top-meta"><div class="service-health" id="service-health" aria-label="Santé générale de l’application et état des services"><button type="button" class="service-indicator" data-service="overall" data-state="unknown"><i></i><span>Application · vérification</span></button><button type="button" class="service-indicator" data-service="api" data-state="unknown"><i></i><span>API · vérification</span></button><button type="button" class="service-indicator" data-service="processing" data-state="unknown"><i></i><span>Traitements · vérification</span></button></div><span class="private-dot"></span><span>Espace privé</span><span class="top-divider"></span><span class="corpus-meta">Tunisie · annonces légales</span><a class="collect-link" href="collecte.html">Collecte locale <span aria-hidden="true">↗</span></a></div>
+  </header>
+  <aside id="dataset-update-notice" class="dataset-update-notice" role="status" hidden><span>De nouvelles annonces sont disponibles dans la base.</span><button id="dataset-update-reload" type="button">Actualiser la restitution</button></aside>
+  <aside id="operation-status" class="operation-status" role="status" aria-live="polite" hidden><span class="operation-spinner" aria-hidden="true"></span><span id="operation-status-label">Traitement local en cours…</span></aside>
+  <main id="accueil">
+    <section class="hero">
+      <div class="hero-copy"><div class="eyebrow"><span></span> LE RÉSEAU ÉCONOMIQUE TUNISIEN</div><h1>Les acteurs.<br><em>Leurs connexions.</em></h1><p>Explorez les entreprises, les associations et les personnes citées dans le JORT. Chaque connexion mène à sa publication source.</p><div class="hero-links"><a href="#entites">Trouver une entité →</a><a href="collecte.html">Administrer la base ↗</a></div></div>
+      <div class="hero-aside"><span class="hero-coordinate">TN / ARCHIVES LÉGALES</span><div class="hero-orbit" aria-hidden="true"><span class="orbit-center">J</span><i></i><i></i><i></i></div><div class="hero-note"><span aria-hidden="true">ⓘ</span><span>Les fiches reflètent des publications datées. L’extraction et les rapprochements restent à vérifier.</span></div></div>
+    </section>
+    <div class="corpus-overview">
+      <section class="coverage-banner" aria-label="Couverture des journaux"><div><span class="coverage-label">Votre corpus</span><strong id="coverage-count">—</strong><small id="coverage-status">Années présentes à charger</small></div><p id="coverage-notes">Les années non indexées ne sont pas encore incluses.</p></section>
+      <section class="metrics" aria-label="Contenu indexé">
+        <div class="metric"><span class="metric-icon" aria-hidden="true">▤</span><div><strong id="source-count">—</strong><small>journaux sources</small></div></div>
+        <div class="metric"><span class="metric-icon" aria-hidden="true">≡</span><div><strong id="announcement-count">—</strong><small>annonces candidates</small></div></div>
+        <div class="metric"><span class="metric-icon" aria-hidden="true">↔</span><div><strong id="relation-count">—</strong><small>relations relevées</small></div></div>
+        <div class="metric"><span class="metric-icon" aria-hidden="true">◎</span><div><strong id="entity-count">—</strong><small>entités regroupées</small></div></div>
+      </section>
+    </div>
+    <nav class="tabs" aria-label="Vues principales" role="tablist"><button id="entites-tab" class="tab active" data-view="entites" type="button" role="tab" aria-controls="entites-view" aria-selected="true"><span class="tab-symbol" aria-hidden="true">◉</span> Entités</button><button id="annonces-tab" class="tab" data-view="annonces" type="button" role="tab" aria-controls="annonces-view" aria-selected="false"><span class="tab-symbol" aria-hidden="true">▤</span> Annonces <span id="tab-announcement-count">0</span></button><span class="workspace-note">Choisissez une entité pour ouvrir sa fiche et son réseau</span></nav>
+    <section id="entites-view" class="view" role="tabpanel" aria-labelledby="entites-tab">
+      <div class="entity-discovery-head"><div><span class="section-kicker">EXPLORER LA BASE</span><h2>Partez d’une entité</h2><p>Une fiche regroupe ses occurrences et ouvre l’ensemble de ses connexions documentées.</p></div><span class="data-badge">Regroupements présumés signalés</span></div>
+      <form id="entity-search-form" class="entity-discovery-search"><label class="searchbox"><span aria-hidden="true">⌕</span><input id="entity-search" type="search" placeholder="Entreprise, association, personne, CIN ou identifiant…" aria-label="Rechercher une entité" autocomplete="off"></label><button type="submit" class="search-submit">Explorer →</button><label class="exact-match-control"><input id="entity-exact-search" data-exact-match type="checkbox"><span>Expression exacte</span></label></form>
+      <div class="entity-discovery-filters" role="group" aria-label="Types d’entités"><button type="button" data-entity-type="" class="selected" aria-pressed="true">Toutes les entités</button><button type="button" data-entity-type="societe" aria-pressed="false">Entreprises</button><button type="button" data-entity-type="association" aria-pressed="false">Associations</button><button type="button" data-entity-type="personne" aria-pressed="false">Personnes</button><button type="button" data-entity-type="fonds_commerce" aria-pressed="false">Fonds de commerce</button><span id="entity-summary" role="status">Chargement des entités…</span></div>
+      <div id="entity-grid" class="entity-discovery-grid" aria-live="polite"></div>
+      <nav class="pagination" aria-label="Pages des entités"><button id="entity-prev" type="button" disabled>← Précédent</button><span id="entity-page">Page 1</span><button id="entity-next" type="button" disabled>Suivant →</button></nav>
+      <p class="entity-method-note">Les noms normalisés identiques sont réunis par présomption. Les CIN et identifiants publiés complètent le rapprochement ; les contradictions restent signalées et les preuves sont conservées.</p>
+    </section>
+    <section id="annonces-view" class="view" role="tabpanel" aria-labelledby="annonces-tab" hidden>
+      <div class="toolbar">
+        <label class="searchbox"><span aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Rechercher dans les annonces, organisations et personnes" placeholder="Une société, une personne, un mot…" autocomplete="off"><kbd>Ctrl K</kbd></label><button id="search-submit" class="search-submit" type="button">Rechercher <span aria-hidden="true">→</span></button>
+        <label class="exact-match-control"><input id="exact-search" data-exact-match type="checkbox"><span>Expression exacte</span><small>Mots consécutifs, accents ignorés</small></label>
+        <label class="filter-label" for="category-filter">Affiner</label>
+        <select id="category-filter" aria-label="Filtrer par catégorie"><option value="toutes">Toutes les catégories</option><option value="societe">Sociétés</option><option value="association">Associations</option><option value="fonds_commerce">Fonds de commerce</option><option value="organisation">Autres organisations</option><option value="a_classer">À classer</option></select>
+        <select id="matching-entity-filter" aria-label="Filtrer par entité trouvée" hidden><option value="">Toutes les entités trouvées</option></select>
+        <select id="source-filter" aria-label="Filtrer par journal"><option value="tous">Tous les journaux</option></select>
+      </div>
+      <div class="results-head"><div><span class="section-kicker">LE FIL DES PUBLICATIONS</span><h2>Annonces candidates</h2><p id="result-summary">Chargement…</p></div><span class="data-badge"><i></i> Données à vérifier</span></div>
+      <p class="category-notice">Les résultats privilégient tous les mots, puis les correspondances partielles. À pertinence égale, les annonces les plus récentes apparaissent en premier.</p><div class="search-legend"><span class="search-match ordered">Mots dans l’ordre</span><span class="search-match unordered">Ordre différent</span><span class="search-match partial-many">Plusieurs mots</span><span class="search-match partial-one">Un mot</span></div>
+      <div class="content-grid">
+        <div id="announcement-list" class="announcement-list" aria-live="polite"></div>
+        <aside id="detail-panel" class="detail-panel" aria-label="Détail de l’annonce"><div class="empty-detail"><span class="empty-icon" aria-hidden="true">↖</span><span class="section-kicker">LA PREUVE À PORTÉE DE MAIN</span><h3>Ouvrez une annonce</h3><p>Consultez le texte, les personnes citées et la référence du journal source.</p></div></aside>
+      </div>
+      <nav id="pagination" class="pagination" aria-label="Pages des annonces"><button id="page-prev" type="button" disabled>← Précédent</button><span id="page-label">Page 1</span><button id="page-next" type="button" disabled>Suivant →</button></nav>
+      <div id="empty-results" class="empty-results" hidden><span aria-hidden="true">⌕</span><h3>Aucun résultat</h3><p>Essayez un autre terme ou une autre catégorie.</p></div>
+    </section>
+    <section id="reseau-view" class="view" role="region" aria-label="Fiche et connexions de l’entité" hidden>
+      <div class="network-context"><button id="network-back-to-entities" class="quiet-button" type="button">← Retour aux entités</button><span>Fiche d’entité · réseau documentaire</span></div><div class="network-heading"><div><span class="section-kicker">L’ATLAS DES CONNEXIONS</span><h2>Connexions de l’entité sélectionnée</h2><p>La fiche réunit les liens documentés à travers toutes les années indexées. Chaque connexion conserve son annonce source ; les rapprochements présumés sont signalés.</p></div><span class="data-badge"><i></i> Sources documentées</span></div>
+      <div class="network-controls">
+        <label class="network-search"><span aria-hidden="true">⌕</span><input id="network-search" type="search" aria-label="Rechercher une organisation ou une personne liée" placeholder="Rechercher un point de départ…" autocomplete="off"></label>
+        <button id="graph-search-submit" class="search-submit" type="button">Rechercher</button>
+        <label class="exact-match-control network-exact-match"><input id="graph-exact-search" data-exact-match type="checkbox"><span>Mot exact</span><small>Expression entière, accents ignorés</small></label>
+        <label class="sr-only" for="organization-select">Point de départ du graphe</label><select id="organization-select" aria-label="Choisir un point de départ pour le réseau"></select>
+        <label class="sr-only" for="graph-event-filter">Nature du lien</label><select id="graph-event-filter"><option value="all">Tous les liens</option><option value="role">Rôles publiés</option><option value="nomination">Nominations</option><option value="capital">Souscriptions au capital</option><option value="cessation">Cessations</option><option value="vente">Ventes</option></select>
+        <nav class="pagination graph-pagination" aria-label="Pages des entités du graphe"><button id="pivot-prev" type="button" aria-label="Page précédente des points de départ" disabled>←</button><span id="pivot-page">Page 1</span><button id="pivot-next" type="button" aria-label="Page suivante des points de départ" disabled>→</button></nav>
+      </div>
+      <div id="network-workspace" class="network-layout">
+          <div class="graph-card">
+          <div class="graph-toolbar"><div class="graph-live"><span class="live-dot"></span><span id="graph-summary" role="status">Relations documentées</span></div><div class="graph-actions"><button id="graph-back" class="quiet-button" type="button" disabled>← Retour</button><button id="graph-contract" class="quiet-button" type="button">− Un niveau</button><button id="graph-expand" class="quiet-button" type="button">+ Un niveau</button><button id="graph-reset" class="quiet-button" type="button">Réinitialiser</button><button id="graph-details-toggle" class="quiet-button" type="button" aria-controls="network-detail-shell" aria-expanded="true">Détails <span aria-hidden="true">◧</span></button><button id="graph-fullscreen" class="icon-button" type="button" aria-label="Passer le graphe en plein écran" title="Plein écran">⛶</button></div></div>
+          <div id="graph-container" class="graph-container" tabindex="0" aria-label="Zone d’exploration du graphe"><svg id="network-graph" role="group" aria-label="Graphe des relations relevées dans les annonces"></svg><div id="graph-empty" class="graph-empty" hidden><span>Aucune relation ne correspond à cette recherche.</span></div></div>
+          <div class="graph-navigation" aria-label="Navigation dans le graphe"><div class="zoom-controls"><button id="graph-zoom-out" class="icon-button" type="button" aria-label="Réduire le zoom" title="Réduire">−</button><output id="graph-zoom-label" aria-label="Niveau de zoom">100 %</output><button id="graph-zoom-in" class="icon-button" type="button" aria-label="Augmenter le zoom" title="Agrandir">+</button><span class="control-divider"></span><button id="graph-fit" class="quiet-button" type="button" title="Voir tout le graphe">Tout voir</button><button id="graph-focus" class="quiet-button" type="button" disabled>Centrer la sélection</button></div><span class="graph-gesture-hint">Déplacez le fond · zoomez · cliquez une entité pour explorer ses connexions</span></div>
+          <div class="graph-legend"><span><i class="legend-person"></i> Personne présumée</span><span><i class="legend-org"></i> Organisation</span><span><i class="legend-sale"></i> Vente de fonds</span><span><i class="legend-appointment"></i> Nomination</span><span><i class="legend-cessation"></i> Cessation</span></div>
+          <p class="graph-caption">Cliquez une entité pour la placer au centre et redéployer ses connexions. Cliquez un lien pour consulter ses justificatifs. Les dates de publication et d’effet restent distinctes.</p><div class="graph-legend" aria-label="Couleur des liens"><span><i class="legend-administration"></i>Conseil / administration</span><span><i class="legend-direction"></i>Direction</span><span><i class="legend-controle"></i>Contrôle des comptes</span><span><i class="legend-appointment"></i>Nomination</span><span><i class="legend-capital"></i>Souscription au capital</span><span><i class="legend-cessation"></i>Cessation</span><span><i class="legend-sale"></i>Vente</span></div><p id="graph-limit-note" class="graph-limit-note" role="status" hidden></p>
+        </div>
+        <aside id="network-detail-shell" class="network-detail-shell" aria-label="Détails et preuves du réseau"><div class="network-detail-heading"><span class="section-kicker">DÉTAILS &amp; SOURCES</span><button id="graph-detail-close" class="icon-button" type="button" aria-label="Masquer le panneau de détails" title="Masquer les détails">×</button></div><div id="network-detail" class="network-detail"><div class="empty-detail"><span class="empty-icon" aria-hidden="true">◎</span><h3>Suivez un premier lien</h3><p>Cliquez sur le graphe pour découvrir les relations et les annonces qui les justifient.</p><span class="empty-detail-note">Un même nom ne garantit pas une même identité.</span></div></div></aside>
+      </div>
+    </section>
+  </main>
+  <footer><span><strong>JORT</strong> <span class="footer-sep">·</span> Recherche documentaire privée</span><span>Publications datées · extraction à vérifier · situation actuelle non garantie</span></footer>
+  <script src="health.js"></script><script src="recherche.js"></script><script src="app.js"></script>
+</body>
+</html>

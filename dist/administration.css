@@ -1,0 +1,169 @@
+/* Administration : une vue par activité, commandes et suivi séparés. */
+.admin-app [hidden] { display: none !important; }
+.admin-app main { max-width: 1560px; width: 100%; }
+.admin-app .intro { padding-bottom: 16px; }
+.admin-app .intro h1 { font-size: clamp(26px, 3vw, 36px); }
+.admin-app .sidebar nav a,
+.admin-app .sidebar nav a:first-child { border: 1px solid transparent; border-left: 1px solid transparent; background: transparent; color: #3d5662; font-weight: 500; }
+.admin-app .sidebar nav a.is-active { border-color: #b5d8d4; background: #e2f2ef; color: #075f5b; font-weight: 700; }
+.admin-app .nav-group { margin-top: 20px; padding-bottom: 8px; }
+.admin-app .admin-view { min-width: 0; }
+.admin-app .section-head { align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.admin-app .section-head h2 { font-size: 22px; }
+.admin-app .workflow-panel { gap: 12px; }
+.admin-app .workflow-actions, .admin-app .admin-toolbar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
+.admin-app .admin-toolbar { padding: 14px; margin-bottom: 18px; background: #f4f8f9; border: 1px solid #dce5e9; border-radius: 10px; }
+.admin-app .admin-toolbar label { display: grid; gap: 6px; min-width: 150px; color: #36525f; font-size: 12px; font-weight: 600; }
+.admin-app .admin-toolbar select { min-height: 40px; padding: 8px 12px; border: 1px solid #c4d4dc; border-radius: 7px; background: #fff; color: #173d50; font: inherit; }
+.admin-app .admin-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-app .admin-action-grid article { display: flex; flex-direction: column; align-items: flex-start; padding: 20px; border: 1px solid #d8e4e9; border-radius: 12px; background: #fafcfd; }
+.admin-app .admin-action-grid h3, .admin-app .maintenance-report h3 { margin: 0 0 9px; font-size: 17px; color: #153e56; }
+.admin-app .admin-action-grid p { flex: 1; margin: 0 0 18px; color: #4c6571; font-size: 13px; line-height: 1.6; }
+.admin-app .admin-action-grid .button { min-height: 42px; }
+.admin-app .coverage-card { margin-top: 6px; box-shadow: none; background: #f2f8f7; }
+.admin-app .folder-cards { margin-top: 20px; gap: 12px; }
+.admin-app .folder-card code, .admin-app .maintenance-report code { overflow-wrap: anywhere; white-space: normal; }
+.admin-app .folder-card { align-items: flex-start; }
+.admin-app .folder-card .button { margin: 4px 5px 4px 0; }
+.admin-app .job-monitor { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 15px; border: 1px solid #d6e3e8; border-radius: 12px; background: #fff; }
+.admin-app #job-status { grid-column: 1; grid-row: 1; min-height: 40px; border: 0; background: transparent; padding: 0; }
+.admin-app #stop-job { grid-column: 2; grid-row: 1; align-self: center; }
+.admin-app .lane-monitor { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.admin-app .lane-card { display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; gap: 12px; margin: 0; padding: 13px; border: 1px solid #dfE8ed; border-radius: 9px; background: #f7fafb; }
+.admin-app .lane-card strong { display: block; margin-bottom: 7px; font-size: 13px; }
+.admin-app .lane-card span { display: block; overflow-wrap: anywhere; color: #4c6571; font-size: 12px; line-height: 1.5; }
+.admin-app .lane-card progress { display: block; width: 100%; margin-top: 12px; height: 8px; accent-color: #07877f; }
+.admin-app .lane-card .button { align-self: flex-start; font-size: 11px; }
+.admin-app .audio-settings { grid-column: 1 / -1; border-top: 1px solid #e6edef; padding-top: 10px; }
+.admin-app summary { cursor: pointer; color: #355663; font-size: 12px; }
+.admin-app .audio-settings[open] summary { margin-bottom: 12px; }
+.admin-app #audio-status { display: inline-block; max-width: 650px; margin-left: 10px; }
+.admin-app .action-feedback { padding: 12px 15px; margin: 0 0 14px; border: 1px solid #b9dbd1; border-radius: 9px; background: #edf8f3; color: #195b45; font-size: 13px; overflow-wrap: anywhere; }
+.admin-app .action-feedback.error { background: #fff3ef; border-color: #ebc7bb; color: #99361f; }
+.admin-app .maintenance-report { margin-top: 24px; padding-top: 22px; border-top: 1px solid #dce5e9; font-size: 13px; line-height: 1.6; }
+.admin-app .maintenance-report details { margin: 12px 0; }
+.admin-app .maintenance-report ul { padding-left: 23px; }
+.admin-app .maintenance-report .error { color: #9a3526; }
+.admin-app .table-wrap { max-height: 560px; }
+.admin-app th { position: sticky; top: 0; z-index: 1; background: #edf4f6; }
+.admin-app td { vertical-align: top; }
+.admin-app .button:focus-visible, .admin-app a:focus-visible, .admin-app select:focus-visible, .admin-app summary:focus-visible { outline: 3px solid #39b5a9; outline-offset: 3px; }
+@media (max-width: 1050px) {
+  .admin-app .lane-monitor { grid-template-columns: 1fr; }
+  .admin-app .lane-card { flex-direction: row; }
+  .admin-app .lane-card>div { flex: 1; min-width: 0; }
+}
+
+/* Lisibilité renforcée pour les longues sessions d’administration. */
+.admin-app { font-size: 14px; }
+.admin-app .sidebar nav a { min-height: 42px; padding: 10px 12px; font-size: 13px; }
+.admin-app .sidebar-label { font-size: 10px; letter-spacing: .12em; }
+.admin-app .section-kicker { font-size: 10px; }
+.admin-app .section-head p,
+.admin-app .scope-note,
+.admin-app .local-notice,
+.admin-app .coverage-footnote { font-size: 13px; line-height: 1.55; }
+.admin-app table { font-size: 12px; }
+.admin-app th, .admin-app td { padding: 10px 12px; }
+.admin-app input, .admin-app select, .admin-app textarea,
+.admin-app .button { font-size: 13px; }
+.admin-app .button { min-height: 40px; }
+.admin-app .pipeline-metrics span { font-size: 11px; }
+.admin-app .lane-card span { font-size: 13px; }
+@media (max-width: 680px) {
+  .admin-app .sidebar nav a { min-height: 40px; padding: 9px 10px; font-size: 12px; }
+  .admin-app th, .admin-app td { padding: 8px; }
+}
+@media (max-width: 760px) {
+  .admin-app .nav-group { display: none; }
+  .admin-app .admin-action-grid { grid-template-columns: 1fr; }
+  .admin-app .sidebar nav { scroll-behavior: smooth; }
+  .admin-app .job-monitor { padding: 12px; }
+  .admin-app .lane-card { flex-direction: column; }
+  .admin-app .admin-toolbar label { flex: 1; }
+  .admin-app #audio-status { margin: 10px 0 0; }
+}
+
+.admin-app .identity-manager { margin-top: 28px; padding-top: 24px; border-top: 1px solid #d8e5e9; }
+.admin-app .identity-admin-results { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,310px),1fr)); gap: 14px; max-height: 650px; overflow: auto; margin-block: 16px; }
+.admin-app .identity-admin-card { border: 1px solid #d8e5e9; border-radius: 14px; padding: 16px; background: #fff; overflow-wrap: anywhere; }
+.admin-app .identity-admin-card p, .admin-app .identity-admin-card details { margin-block: 10px; font-size: 12px; line-height: 1.7; }
+.admin-app .identity-admin-card input[type="checkbox"], .admin-app .identity-confirmation input { width: auto; margin-right: 8px; }
+.admin-app .identity-selected { display: flex; gap: 8px; flex-wrap: wrap; margin-block: 18px; }
+.admin-app .identity-selected .entity-tag { padding: 8px 12px; border-radius: 12px; background: #e7f4f1; }
+.admin-app .identity-selected button { border: 0; background: transparent; cursor: pointer; padding: 4px 8px; }
+.admin-app .identity-preview { padding: 16px; border-radius: 14px; background: #f2f7f9; max-height: 320px; overflow: auto; }
+.admin-app .identity-confirmation { display: block; margin-block: 16px; line-height: 1.7; }
+.admin-app #identity-history { display: grid; gap: 10px; margin-top: 14px; }
+
+/* Parcours commun : suivi annuel, fichiers, décisions, entretien et historique. */
+.admin-app .sidebar nav a { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; margin-bottom: 5px; }
+.admin-app .sidebar nav a small { color: #647b88; font-size: 11px; font-weight: 400; }
+.admin-app .sidebar nav a.is-active small { color: #31766d; }
+.admin-app .intro .local-notice { margin-top: 12px; }
+.admin-app .job-monitor { gap: 10px; }
+.admin-app .last-tasks { grid-column: 1 / -1; border-top: 1px solid #e6edef; padding-top: 9px; }
+.admin-app .last-tasks .lane-card { background: #fafcfd; }
+.admin-app .last-tasks .lane-card span { max-height: 95px; overflow: auto; }
+.admin-app .lane-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-app .lane-actions .button { font-size: 12px; }
+.admin-app .overview-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 20px 0; }
+.admin-app .overview-metrics article { padding: 16px 18px; border-radius: 12px; border: 1px solid #dbe7eb; background: #f7fafb; display: grid; gap: 5px; }
+.admin-app .overview-metrics b { color: #153e56; font-size: 28px; letter-spacing: -.03em; }
+.admin-app .overview-metrics span { color: #506a78; font-size: 12px; }
+.admin-app .overview-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 14px; background: #f5f8fa; border-radius: 10px; }
+.admin-app .overview-toolbar label { display: grid; gap: 6px; font-size: 12px; color: #36525f; }
+.admin-app .overview-toolbar select, .admin-app .overview-toolbar input { min-height: 40px; padding: 8px 12px; border: 1px solid #c4d4dc; border-radius: 7px; background: #fff; color: #173d50; }
+.admin-app #overview-updated { align-self: center; color: #647b88; font-size: 12px; margin-left: auto; max-width: 340px; }
+.admin-app .overview-table { min-width: 860px; }
+.admin-app .overview-table th { white-space: normal; line-height: 1.5; }
+.admin-app .overview-table td { vertical-align: middle; }
+.admin-app .count-link { background: transparent; border: 0; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 700; color: #087e79; padding: 8px 10px; margin-left: -10px; text-decoration: underline; text-decoration-color: #b7dcd7; text-underline-offset: 4px; }
+.admin-app .count-link:hover { background: #e5f4f1; }
+.admin-app .count-link.is-missing { color: #a24d22; text-decoration-color: #e7c1a9; }
+.admin-app .storage-split { display: block; color: #647b88; font-size: 11px; font-weight: 400; line-height: 1.6; margin-top: 4px; max-width: 350px; overflow-wrap: anywhere; }
+.admin-app .inventory-badge { display: inline-block; padding: 5px 9px; border-radius: 20px; background: #fff4e5; color: #8c5a1a; font-size: 11px; white-space: nowrap; }
+.admin-app .inventory-badge.complete { color: #246453; background: #e7f5ed; }
+.admin-app .quick-actions { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
+.admin-app .quick-actions a { display: grid; gap: 7px; padding: 16px; border: 1px solid #d6e3e8; border-radius: 10px; color: #153e56; text-decoration: none; }
+.admin-app .quick-actions a:hover { border-color: #7bbfb7; background: #f0faf7; }
+.admin-app .quick-actions strong { font-size: 13px; }
+.admin-app .quick-actions span { color: #526d7a; font-size: 12px; line-height: 1.6; }
+.admin-app .initial-batch-copy p, .admin-app .initial-batch-copy .initial-batch-checkpoint { font-size: 13px; line-height: 1.6; }
+.admin-app .initial-batch-card { box-shadow: none; padding: 20px; }
+.admin-app .pdf-workspace { padding-top: 20px; }
+.admin-app .pdf-action-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid #dce5e9; }
+.admin-app .pdf-action-tabs button { border: 1px solid #c8d9df; border-radius: 8px; background: #fff; color: #375d70; min-height: 42px; padding: 9px 16px; cursor: pointer; font: inherit; }
+.admin-app .pdf-action-tabs button.is-active { background: #087e79; border-color: #087e79; color: #fff; }
+.admin-app [data-pdf-panel] > .panel { padding: 20px 0 0; margin: 0; border: 0; box-shadow: none; background: transparent; }
+.admin-app .technical-detail { margin-top: 18px; }
+.admin-app .technical-detail > summary, .admin-app .advanced-operations > summary { padding: 12px 14px; border-radius: 8px; background: #f1f6f8; color: #365a6b; font-size: 14px; font-weight: 600; }
+.admin-app .advanced-operations { margin: 18px 0; }
+.admin-app .advanced-operations[open] > summary { margin-bottom: 16px; }
+.admin-app .advanced-operations > p { font-size: 13px; line-height: 1.6; color: #526d7a; }
+.admin-app .files-summary-cards { grid-template-columns: repeat(5,minmax(0,1fr)); }
+.admin-app .files-summary-cards article { padding: 14px; }
+.admin-app .files-summary-cards span { font-size: 12px; }
+.admin-app .files-summary-cards b { font-size: 25px; }
+.admin-app .storage-summary, .admin-app .files-legend { font-size: 12px; color: #526d7a; line-height: 1.7; }
+.admin-app .file-analysis { font-size: 12px; }
+.admin-app .section-shortcuts { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-top: 14px; font-size: 13px; }
+.admin-app .section-shortcuts a { color: #087e79; }
+.admin-app .log-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.admin-app .log-filters .is-active { background: #e5f4f1; border-color: #7bbfb7; color: #075f5b; }
+.admin-app .export-link[aria-disabled="true"] { color: #7b8d96; pointer-events: none; opacity: .6; }
+.admin-app .events-log { font-size: 12px; line-height: 1.8; max-height: 560px; }
+.admin-app [id] { scroll-margin-top: 90px; }
+@media (max-width: 1150px) {
+  .admin-app .quick-actions { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-app .files-summary-cards { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  .admin-app .sidebar nav a small { display: none; }
+  .admin-app .overview-metrics, .admin-app .files-summary-cards { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-app #overview-updated { margin-left: 0; max-width: none; }
+  .admin-app .overview-toolbar label { flex: 1; min-width: 130px; }
+  .admin-app .initial-batch-actions { display: flex; flex-wrap: wrap; }
+  .admin-app .quick-actions { grid-template-columns: 1fr; }
+  .admin-app [id] { scroll-margin-top: 135px; }
+}

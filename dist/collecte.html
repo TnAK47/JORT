@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102b3b">
+  <title>Administration JORT</title>
+  <link rel="stylesheet" href="collecte.css">
+  <link rel="stylesheet" href="interface.css">
+  <link rel="stylesheet" href="administration.css">
+  <link rel="stylesheet" href="atelier.css">
+</head>
+<body class="admin-app">
+  <a class="skip-link" href="#main-content">Aller au contenu</a>
+  <header class="topbar">
+<a class="brand" href="index.html">
+<span class="brand-mark">J</span>
+<span>
+<strong>JORT</strong>
+<small>Administration locale</small>
+</span>
+</a>
+<div class="topbar-right">
+<div class="service-health" id="service-health" aria-label="Santé générale de l’application et état des services">
+<button type="button" class="service-indicator" data-service="overall" data-state="unknown">
+<i>
+</i>
+<span>Application · vérification</span>
+</button>
+<button type="button" class="service-indicator" data-service="api" data-state="unknown">
+<i>
+</i>
+<span>API · vérification</span>
+</button>
+<button type="button" class="service-indicator" data-service="processing" data-state="unknown">
+<i>
+</i>
+<span>Traitements · vérification</span>
+</button>
+</div>
+<span class="private-badge">
+<i>
+</i> Espace privé</span>
+<a class="subtle-nav" href="index.html">Explorer les entités ↗</a>
+</div>
+</header>
+<div class="admin-layout">
+<aside class="sidebar">
+<div class="sidebar-label">ADMINISTRATION</div>
+<nav aria-label="Administration">
+<a href="#overview" data-admin-target="overview">
+<span>Pilotage</span>
+<small>Avancement, batchs et reprises</small>
+</a>
+<a href="#journaux" data-admin-target="journaux">
+<span>Collecte &amp; analyse</span>
+<small>Choisir une année et agir</small>
+</a>
+<a href="#interventions" data-admin-target="interventions">
+<span>À vérifier</span>
+<small>Interventions nécessaires</small>
+</a>
+<a href="#maintenance" data-admin-target="maintenance">
+<span>Base &amp; archives</span>
+<small>Base, fusions et Drive</small>
+</a>
+<a href="#logs" data-admin-target="logs">
+<span>Journal d’activité</span>
+<small>Détail des exécutions</small>
+</a>
+</nav>
+<div class="sidebar-foot">
+<span class="local-mark">
+</span> Sur cet ordinateur<br>
+<small>Actions lancées manuellement</small>
+</div>
+</aside>
+<main id="main-content">
+<section class="intro">
+<div class="eyebrow">
+<span>
+</span> ADMINISTRATION · ESPACE PRIVÉ</div>
+<h1 id="admin-page-title">Vue d’ensemble</h1>
+<p id="admin-page-description">Suivez l’alimentation par année et lancez les opérations utiles.</p>
+<div class="local-notice">
+<b>Traitement local</b>
+<span>Aucun appel à ChatGPT. La collecte et l’analyse peuvent avancer en parallèle.</span>
+</div>
+</section>
+<div id="api-error" class="api-error" role="alert" hidden>
+<strong>API locale indisponible.</strong>
+<span>Démarrez le serveur local avec demarrer.ps1.</span>
+<button id="retry-api" type="button">Réessayer</button>
+</div>
+<div id="action-feedback" class="action-feedback" role="status" hidden>
+</div>
+<section class="job-monitor">
+<div class="monitor-title"><span class="section-kicker">SUIVI EN DIRECT</span><span id="monitor-updated">Connexion au serveur…</span></div>
+<div id="job-status" class="job-status" aria-live="polite">
+<span class="status-dot">
+</span>
+<span>Aucun traitement actif.</span>
+</div>
+<div id="lane-monitor" class="lane-monitor" aria-live="polite">
+</div>
+<details id="last-tasks" class="last-tasks">
+<summary>Dernières tâches et points de reprise</summary>
+<div id="recent-lanes" class="lane-monitor">
+</div>
+</details>
+<details class="audio-settings">
+<summary>Notifications sonores</summary>
+<button id="audio-test" class="button quiet" type="button">Tester le bip et la voix</button>
+<span id="audio-status" class="scope-note" aria-live="polite">À la fin d’une tâche, un bip et une annonce en français seront joués sur cet ordinateur. Gardez cette page ouverte pendant le traitement.</span>
+</details>
+<button id="stop-job" class="button danger" type="button" disabled>Arrêter les tâches</button>
+</section>
+<div class="admin-view" data-admin-panel="overview" hidden>
+<section id="overview" class="panel overview-panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">SUIVI DE L’ALIMENTATION</span>
+<h2>Où en sont les journaux ?</h2>
+<p>Choisissez une année ou cliquez sur un compteur pour afficher les fichiers concernés.</p>
+</div>
+<div class="table-tools"><a class="button primary" href="#batchs">Batchs et reprises</a><button type="button" class="button quiet" id="refresh-overview">Actualiser le bilan</button></div>
+</div>
+<div class="overview-metrics">
+<article>
+<b id="overview-recorded">—</b>
+<span>PDF enregistrés</span>
+</article>
+<article>
+<b id="overview-analyzed">—</b>
+<span>journaux analysés</span>
+</article>
+<article>
+<b id="overview-missing">—</b>
+<span>PDF manquants connus</span>
+</article>
+<article>
+<b id="overview-errors">—</b>
+<span>journaux en erreur</span>
+</article>
+</div>
+<div class="overview-toolbar">
+<label>Années à afficher<select id="overview-filter">
+<option value="known">Années inventoriées</option>
+<option value="todo">Avec des fichiers à traiter</option>
+<option value="missing">Avec des PDF manquants</option>
+<option value="all">Toutes les années</option>
+</select>
+</label>
+<label>Rechercher une année<input id="overview-search" type="search" inputmode="numeric" placeholder="2025" maxlength="4">
+</label>
+<span id="overview-updated" role="status">Chargement du bilan…</span>
+</div>
+<p class="scope-note">Ce bilan utilise les références enregistrées, sans ouvrir tous les PDF sur Drive. Le détail d’une année vérifie leur accessibilité réelle. « — » signifie que l’information n’est pas encore connue.</p>
+<div class="table-wrap">
+<table class="overview-table">
+<caption class="sr-only">Avancement des journaux par année</caption>
+<thead>
+<tr>
+<th>Année</th>
+<th>Attendus</th>
+<th>PDF enregistrés</th>
+<th>Analysés</th>
+<th>À analyser / mettre à jour</th>
+<th>Manquants connus</th>
+<th>Erreurs</th>
+<th>Inventaire</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="overview-body">
+<tr>
+<td colspan="9" class="table-empty">Chargement des années…</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="batchs" class="panel batch-panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">LANCER, ARRÊTER OU REPRENDRE</span>
+<h2>Batchs et opérations</h2>
+<p>Un batch est un traitement de plusieurs fichiers. Les tâches actives sont suivies en haut de la page.</p>
+</div>
+<a class="button quiet" href="#logs">Ouvrir les logs</a>
+</div>
+<div class="initial-batch-card" id="initial-batch-card">
+<div class="initial-batch-copy">
+<span class="section-kicker">BATCH HISTORIQUE · TÉLÉCHARGEMENT ET ANALYSE</span>
+<h3>Alimenter toutes les années</h3>
+<p>Le téléchargement et l’analyse avancent en parallèle, avec un PDF à la fois dans chaque étape. Après analyse réussie, le PDF est transféré sur Drive ; si Drive est indisponible, il reste en local. L’arrêt mémorise le point de reprise.</p>
+<p class="initial-batch-checkpoint" id="initial-batch-checkpoint" aria-live="polite">Chargement du point de reprise…</p>
+</div>
+<div class="initial-batch-actions">
+<button id="initial-batch-start" class="button primary" type="button">Lancer le rattrapage initial</button>
+<button id="initial-batch-stop" class="button danger" type="button" disabled>Arrêter et mémoriser le point</button>
+</div>
+</div>
+        <div class="quick-actions">
+<a href="#collecte">
+<strong>Télécharger une année</strong>
+<span>Récupérer ses PDF manquants.</span>
+</a>
+<a href="#extraction">
+<strong>Analyser les PDF reçus</strong>
+<span>Traiter les fichiers encore non indexés.</span>
+</a>
+<a href="#depot">
+<strong>Ajouter mes PDF</strong>
+<span>Déposer et analyser des fichiers manuellement.</span>
+</a>
+<a href="#maintenance">
+<strong>Entretenir la base</strong>
+<span>Contrôler, réparer, fusionner ou sauvegarder.</span>
+</a>
+</div>
+</section>
+</div>
+<div class="admin-view" data-admin-panel="journaux" hidden>
+<section id="fichiers" class="panel">
+<div class="year-row collection-year-row">
+<label for="collection-year">Année des journaux et de la collecte<select id="collection-year" aria-label="Année des journaux">
+</select>
+</label>
+<span>Les états ci-dessous tiennent compte des PDF locaux et sur Google Drive.</span>
+</div>
+<div class="section-head">
+<div>
+<span class="section-kicker">FICHIERS ET PROGRESSION</span>
+<h2 id="files-title">PDF par année</h2>
+<p id="file-summary">Choisissez une année pour distinguer les PDF présents, les absents, les analyses en attente et les journaux indexés.</p>
+</div>
+<div class="table-tools">
+<select id="file-filter" aria-label="Filtrer les journaux">
+<option value="missing">Manquants confirmés</option>
+<option value="present">PDF présents</option>
+<option value="todo">Non indexés</option>
+<option value="indexed">Indexés</option>
+<option value="errors">Erreurs ou à vérifier</option>
+<option value="tous" selected>Tous les journaux connus</option>
+</select>
+<a class="button quiet export-link" data-export-type="missing" data-year-selector="files-year" href="/api/collecte/export?type=missing">Exporter les manquants</a>
+<button id="refresh-files" class="button quiet" type="button">Actualiser</button>
+</div>
+</div>
+<div class="files-summary-cards">
+<article>
+<b id="file-count-expected">—</b>
+<span>journaux attendus</span>
+</article>
+<article>
+<b id="file-count-present">—</b>
+<span>PDF accessibles</span>
+</article>
+<article>
+<b id="file-count-indexed">—</b>
+<span>indexés</span>
+</article>
+<article class="missing">
+<b id="file-count-missing">—</b>
+<span>manquants confirmés</span>
+</article>
+<article class="attention">
+<b id="file-count-errors">—</b>
+<span>à reprendre / vérifier</span>
+</article>
+</div>
+<p class="storage-summary">
+<span id="file-count-local">—</span> en local · <span id="file-count-drive">—</span> sur Drive · <span id="file-count-pending">—</span> à analyser</p>
+<p class="files-legend">* Les absences sont comptées parmi les numéros inventoriés. Si l’inventaire annuel est incomplet, le nombre de PDF manquants peut encore augmenter. « À inventorier » ne signifie pas « manquant ».</p>
+<div class="table-wrap">
+<table>
+<caption class="sr-only">État des PDF et de leur analyse pour l’année sélectionnée</caption>
+<thead>
+<tr>
+<th scope="col">N°</th>
+<th scope="col">Date</th>
+<th scope="col">Nom du PDF</th>
+<th scope="col">Fichier</th>
+<th scope="col">Analyse</th>
+<th scope="col">Source / action</th>
+</tr>
+</thead>
+<tbody id="files-body">
+<tr>
+<td colspan="6" class="table-empty">Chargement de l’inventaire…</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="panel pdf-workspace">
+<div class="section-head">
+<div>
+<span class="section-kicker">ACTIONS SUR LES JOURNAUX</span>
+<h2>Télécharger, ajouter ou analyser</h2>
+<p>Choisissez l’action. Les traitements progressent en arrière-plan pendant votre navigation.</p>
+</div>
+</div>
+<div class="pdf-action-tabs" role="tablist" aria-label="Actions sur les PDF">
+<button type="button" role="tab" id="tab-collecte" data-pdf-tab="collecte" aria-controls="pdf-collecte">Télécharger</button>
+<button type="button" role="tab" id="tab-depot" data-pdf-tab="depot" aria-controls="pdf-depot">Ajouter des PDF</button>
+<button type="button" role="tab" id="tab-extraction" data-pdf-tab="extraction" aria-controls="pdf-extraction">Analyser / reprendre</button>
+</div>
+<div data-pdf-panel="collecte" id="pdf-collecte" role="tabpanel" aria-labelledby="tab-collecte">
+<section id="collecte" class="panel workflow-panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">TÉLÉCHARGER</span>
+<h2>Télécharger les journaux manquants</h2>
+<p>La collecte utilise l’année choisie au-dessus. Chaque téléchargement réussi est automatiquement envoyé à l’analyse.</p>
+</div>
+<button id="refresh" class="button quiet" type="button">↻ Actualiser</button>
+</div>
+
+        <div class="workflow-actions">
+<button class="button quiet job-action" data-action="scan" type="button">Vérifier les fichiers reçus</button>
+<label class="download-limit">Taille du lot<select id="job-limit">
+<option value="5">5 journaux maximum</option>
+<option value="10">10 journaux maximum</option>
+<option value="25">25 journaux maximum</option>
+<option value="0">Tous les manquants</option>
+</select>
+</label>
+<button class="button primary job-action" data-action="download" type="button">Télécharger les PDF manquants</button>
+</div>
+<p class="scope-note">Chaque PDF réussi passe automatiquement en analyse. Après trois échecs, le lot passe au journal suivant et conserve celui en erreur pour une relance individuelle.</p>
+      <details class="technical-detail">
+<summary>Inventaire de l’année et couverture connue</summary>
+<div class="coverage-card">
+<div class="section-kicker" id="coverage-title">COUVERTURE</div>
+<div class="coverage-main">
+<strong id="coverage-count">—</strong>
+<span id="inventory-state">En attente des données</span>
+</div>
+<div class="coverage-stats">
+<div>
+<b id="known-count">—</b>
+<span>connus</span>
+</div>
+<div>
+<b id="available-count">—</b>
+<span>disponibles*</span>
+</div>
+<div>
+<b id="indexed-count">—</b>
+<span>indexés</span>
+</div>
+</div>
+<p class="coverage-footnote">* Disponibilité IORT à vérifier. Les PDF scannés peuvent demander une intervention OCR.</p>
+</div>
+</details>
+</section>
+</div>
+<div data-pdf-panel="depot" id="pdf-depot" role="tabpanel" aria-labelledby="tab-depot">
+<section id="depot" class="panel upload-panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">DÉPÔT LOCAL</span>
+<h2>Ajouter des PDF à la main</h2>
+<p>Déposez un ou plusieurs PDF ; le site les vérifie, les range par année et lance leur analyse automatiquement.</p>
+<label class="download-limit">Année du dépôt<select id="upload-year">
+</select>
+</label>
+</div>
+</div>
+<div class="upload-controls">
+<label class="file-picker" for="manual-pdfs">
+<span class="folder-symbol">＋</span>
+<span>
+<strong>Choisir un ou plusieurs PDF</strong>
+<small id="upload-selection">Aucun fichier sélectionné · 100 Mo maximum au total</small>
+</span>
+<input id="manual-pdfs" type="file" accept=".pdf,application/pdf" multiple>
+</label>
+<button id="upload-button" class="button primary" type="button" disabled>Déposer et analyser</button>
+</div>
+<p id="upload-feedback" class="upload-feedback" aria-live="polite">Les PDF déposés seront classés dans l’année choisie ci-dessus.</p>
+<div id="folder-cards" class="folder-cards">
+</div>
+</section>
+</div>
+<div data-pdf-panel="extraction" id="pdf-extraction" role="tabpanel" aria-labelledby="tab-extraction">
+<section id="extraction" class="panel workflow-panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">ÉTAPE 2 · EXTRACTION ET INDEXATION</span>
+<h2>Extraire et indexer</h2>
+<p>Le traitement analyse automatiquement les PDF disponibles pour alimenter la recherche.</p>
+</div>
+</div>
+        <div class="analysis-note">Seuls les PDF non indexés sont traités, un par un. Les reprises individuelles sont disponibles ci-dessous. Chaque annonce et chaque lien conservent leur source.</div>
+<div id="analysis-stats" class="analysis-stats">
+<div>
+<b id="stat-announcements">—</b>
+<span>annonces candidates</span>
+</div>
+<div>
+<b id="stat-organizations">—</b>
+<span>organisations</span>
+</div>
+<div>
+<b id="stat-persons">—</b>
+<span>personnes</span>
+</div>
+<div>
+<b id="stat-relations">—</b>
+<span>relations relevées</span>
+</div>
+<div>
+<b id="stat-pages">—</b>
+<span>pages traitées</span>
+</div>
+<div>
+<b id="stat-unclassified">—</b>
+<span>catégorie non déterminée</span>
+</div>
+</div>
+<div class="workflow-actions">
+<label class="download-limit">Année à indexer<select id="index-year" aria-label="Année d’indexation">
+</select>
+</label>
+<label class="download-limit">Quantité de nouveaux journaux<select id="index-limit">
+<option value="5">5 journaux</option>
+<option value="10">10 journaux</option>
+<option value="25">25 journaux</option>
+<option value="0" selected>Tous</option>
+</select>
+</label>
+<button class="button primary job-action" data-action="index" type="button">Extraire et indexer les nouveaux</button>
+</div>
+      </section>
+<section id="suivi" class="panel pipeline-panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">FICHIERS ET PROGRESSION</span>
+<h2>Analyses à reprendre</h2>
+<p>Cette liste ne montre que les PDF qui restent à analyser ou qui ont besoin d’une reprise. Un PDF sans annonce détectée est classé « à vérifier ».</p>
+</div>
+<div class="table-tools">
+<label class="download-limit">État de l’analyse<select id="pipeline-filter">
+<option value="all">Tous les non-indexés</option>
+<option value="pending">À traiter / en attente</option>
+<option value="error">En erreur / à reprendre</option>
+<option value="verify">À vérifier</option>
+</select>
+</label>
+<button id="refresh-pipeline" class="button quiet" type="button">Actualiser</button>
+</div>
+</div>
+<div class="pipeline-metrics">
+<article>
+<b id="pipeline-downloaded">—</b>
+<span>PDF présents</span>
+</article>
+<article>
+<b id="pipeline-indexed">—</b>
+<span>journaux analysés</span>
+</article>
+<article>
+<b id="pipeline-pending">—</b>
+<span>à analyser ou en cours</span>
+</article>
+<article>
+<b id="pipeline-errors">—</b>
+<span>à reprendre</span>
+</article>
+</div>
+<p id="pipeline-activity" class="scope-note">Sélectionnez l’année à vérifier. Les fichiers indexés sont masqués.</p>
+<div class="table-wrap">
+<table>
+<caption class="sr-only">PDF téléchargés qui ne sont pas encore indexés ou doivent être repris</caption>
+<thead>
+<tr>
+<th scope="col">N°</th>
+<th scope="col">Date</th>
+<th scope="col">Fichier PDF</th>
+<th scope="col">État</th>
+<th scope="col">Détail</th>
+<th scope="col">Action</th>
+</tr>
+</thead>
+<tbody id="pipeline-body">
+<tr>
+<td colspan="6" class="table-empty">Chargement du suivi…</td>
+</tr>
+</tbody>
+</table>
+</div>
+<nav class="pagination" aria-label="Pages des journaux suivis">
+<button id="pipeline-prev" type="button" disabled>← Précédent</button>
+<span id="pipeline-page">Page 1</span>
+<button id="pipeline-next" type="button" disabled>Suivant →</button>
+</nav>
+</section>
+</div>
+</section>
+</div>
+<div class="admin-view" data-admin-panel="interventions" hidden>
+<section id="interventions" class="panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">INTERVENTION HUMAINE</span>
+<h2>Problèmes à résoudre</h2>
+<p id="ticket-summary">Intervention humaine réservée aux difficultés majeures · tickets à charger.</p>
+</div>
+<div class="table-tools">
+<label class="download-limit">Année des interventions<select id="ticket-year">
+</select>
+</label>
+<select id="ticket-kind" aria-label="Filtrer le type de ticket">
+<option value="all">Tous les types</option>
+<option value="fichier">Fichier</option>
+<option value="extraction">Extraction</option>
+<option value="identite">Identité à rapprocher</option>
+<option value="validation">Validation exceptionnelle</option>
+</select>
+<select id="ticket-state" aria-label="Filtrer l’état des tickets">
+<option value="open">Ouverts</option>
+<option value="all">Tous les états</option>
+</select>
+</div>
+</div>
+<p class="scope-note">Les erreurs de téléchargement et les analyses à reprendre sont accessibles dans Journaux PDF. Ici figurent les difficultés signalées pour une décision humaine.</p>
+<div id="ticket-list" class="ticket-list">
+<div class="table-empty">Chargement des tickets…</div>
+</div>
+<nav class="pagination" aria-label="Pages de tickets">
+<button id="ticket-prev" type="button" disabled>← Précédent</button>
+<span id="ticket-page">Page 1</span>
+<button id="ticket-next" type="button" disabled>Suivant →</button>
+</nav>
+</section>
+</div>
+<div class="admin-view" data-admin-panel="maintenance" hidden>
+<section id="maintenance" class="panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">ADMINISTRATION TECHNIQUE</span>
+<h2>Entretien et sauvegardes</h2>
+<nav class="section-shortcuts" aria-label="Outils de maintenance">
+<a href="#maintenance">Contrôle et réparation</a>
+<a href="#identity-manager">Fusionner des fiches</a>
+<a href="#batch-nuit">Sauvegardes et Drive</a>
+</nav>
+<p>Les contrôles et réparations couvrent toute la base par défaut. Une maintenance attend la fin du PDF en cours.</p>
+</div>
+</div>
+<div class="admin-toolbar">
+<label>Année pour une opération ciblée<select id="maintenance-year">
+</select>
+</label>
+<label>Périmètre<select id="maintenance-scope">
+<option value="all" selected>Toute la base (recommandé)</option>
+<option value="year">Année choisie seulement</option>
+</select>
+</label>
+</div>
+<div class="admin-action-grid">
+<article>
+<h3>Contrôler les données</h3>
+<p>Lecture seule : vérifie annonces, sources, pages, liens, PDF sur G: et bases SQLite. Le contrôle global vérifie aussi les références des interventions.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_check">Vérifier la base</button>
+</article>
+<article>
+<h3>Réparer les anomalies</h3>
+<p>Corrige les anomalies reconnues sans relire les PDF : titres récupérables, synchronisation SQLite et mise à jour des interventions. Une copie de sécurité précède chaque modification.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_repair">Réparer la base</button>
+</article>
+</div>
+<details class="advanced-operations">
+<summary>Opérations avancées : titres, liens, doublons et optimisation</summary>
+<p>Utilisez ces outils pour une correction ciblée. Une copie de sécurité précède les modifications prévues par chaque opération.</p>
+<div class="admin-action-grid">
+<article>
+<h3>Compléter les titres et les liens</h3>
+<p>Réexamine les textes de toutes les années : noms des entités, administrateurs, sociétés administratrices, dirigeants et commissaires aux comptes. Crée les identifiants permanents et actualise les connexions. Annonces inchangées, sauvegardes et reprise par année ; aucun téléchargement ni appel à ChatGPT.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_reextract_entities" data-maintenance-scope="all">Corriger les titres et compléter tous les liens</button>
+</article>
+<article>
+<h3>Reconstruire la restitution globale</h3>
+<p>Regroupe toutes les années déjà indexées dans la recherche et le graphe. Ne réextrait pas les PDF et ne crée pas de relation absente des bases annuelles.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_connections" data-maintenance-scope="all">Reconstruire toute la restitution</button>
+</article>
+<article>
+<h3>Nettoyer les annonces dupliquées</h3>
+<p>Retire uniquement les lignes strictement identiques sous le même identifiant. Les annonces distinctes, entités, liens et preuves sources sont conservés. Une sauvegarde précède chaque retrait ; les identifiants contradictoires restent à contrôler.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_deduplicate_announcements" data-maintenance-scope="all">Nettoyer les doublons exacts</button>
+</article>
+<article>
+<h3>Fusionner les identités certaines</h3>
+<p>Regroupe dans le graphe les personnes avec la même CIN et le même nom après normalisation, et les organisations avec le même identifiant officiel. Les noms normalisés identiques peuvent être réunis à titre présumé dans la restitution privée ; les preuves et les identifiants restent conservés. Les organisations sans identifiant peuvent être regroupées provisoirement sur leur nom exact, avec une indication de doute. Toutes les preuves sont conservées.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_merge_duplicates" data-maintenance-scope="all">Fusionner les duplicata sûrs</button>
+<p>Une personne sans CIN peut être confirmée explicitement à partir de ses occurrences précises.</p>
+<a href="#identity-manager" class="text-link">Choisir les fiches à fusionner ci-dessous →</a>
+</article>
+<article>
+<h3>Optimiser le stockage</h3>
+<p>Vérifie et compacte les bases SQLite annuelles pour accélérer les requêtes et récupérer de l’espace. Une copie de sécurité précède chaque base modifiée.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_optimize">Optimiser la base</button>
+</article>
+</div>
+</details>
+<p class="scope-note">Le périmètre global est recommandé pour contrôler les références entre années. L’option annuelle sert au diagnostic ciblé. Aucune maintenance ne démarre à l’ouverture de la page.</p>
+<a href="#batch-nuit" class="text-link">Voir le rapport et les sauvegardes →</a>
+<section id="identity-manager" class="identity-manager">
+<div class="section-head">
+<div>
+<span class="section-kicker">FICHES UNIQUES · TOUTES LES ANNÉES</span>
+<h3>Fusionner les entités</h3>
+<p>Comparez les annonces, sélectionnez les fiches d’une même personne ou organisation et consultez les connexions réunies. La première fiche garde son identifiant. Une fusion reste annulable ; des CIN ou identifiants contradictoires la bloquent.</p>
+</div>
+</div>
+<div class="admin-toolbar">
+<label>Nom de personne ou d’organisation<input id="identity-query" type="search" placeholder="Selma Elloumi Rekik, HELIOFLEX…" maxlength="150">
+</label>
+<button id="identity-search" class="button quiet" type="button">Rechercher / actualiser</button>
+</div>
+<p id="identity-message" role="status">Lancez la correction globale une première fois, puis recherchez les fiches à réunir.</p>
+<div id="identity-results" class="identity-admin-results">
+</div>
+<div id="identity-selected" class="identity-selected" aria-live="polite">Aucune fiche sélectionnée.</div>
+<div id="identity-preview" class="identity-preview" aria-live="polite">Choisissez au moins deux fiches pour afficher les connexions réunies.</div>
+<div class="admin-toolbar">
+<label>Nom de la fiche réunie<input id="identity-label" maxlength="150">
+</label>
+<label>Motif et éléments vérifiés<input id="identity-reason" maxlength="1000" placeholder="Identifiant concordant, annonces vérifiées…">
+</label>
+</div>
+<label class="identity-confirmation">
+<input id="identity-confirmed" type="checkbox"> J’ai vérifié les preuves et confirme qu’il s’agit de la même entité.</label>
+<button id="identity-merge" class="button" type="button" data-maintenance-scope="all" disabled>Fusionner les fiches sélectionnées</button>
+<details>
+<summary>Historique des fusions manuelles et annulation</summary>
+<div id="identity-history">
+</div>
+</details>
+</section>
+</section>
+<section id="batch-nuit" class="panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">ADMINISTRATION TECHNIQUE</span>
+<h2>Sauvegardes</h2>
+<p>Sauvegardez les données et archivez les PDF déjà indexés.</p>
+</div>
+</div>
+<div class="admin-toolbar">
+<label>Année<select id="backup-year">
+</select>
+</label>
+<label>Périmètre<select id="backup-scope">
+<option value="year">Année choisie</option>
+<option value="all">Toute la base</option>
+</select>
+</label>
+</div>
+<div class="admin-action-grid">
+<article>
+<h3>Sauvegarder les données</h3>
+<p>Crée une copie locale cohérente des bases JSON et SQLite. Les PDF sources ne sont pas dupliqués.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_backup" data-year-selector="backup-year" data-scope-selector="backup-scope">Créer une sauvegarde</button>
+</article>
+<article>
+<h3>Archiver les PDF sur Drive</h3>
+<p>Transfère les PDF entièrement indexés et vérifie les copies avant de retirer les fichiers locaux. Google Drive doit être connecté.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_transfer_drive" data-year-selector="backup-year" data-scope-selector="backup-scope">Transférer les PDF indexés</button>
+</article>
+</div>
+<div class="maintenance-report">
+<h3>Dernier rapport de maintenance</h3>
+<div id="maintenance-result" aria-live="polite">Aucun rapport chargé.</div>
+<button id="download-report" class="button quiet" type="button" disabled>Télécharger le rapport JSON</button>
+<p class="scope-note">Le rapport JSON conserve le détail des contrôles, corrections et chemins de sauvegarde.</p>
+</div>
+</section>
+</div>
+<div class="admin-view" data-admin-panel="logs" hidden>
+<section id="logs" class="panel events-panel">
+<div class="section-head">
+<div>
+<span class="section-kicker">JOURNAUX D’ACTIVITÉ</span>
+<h2>Historique et logs</h2>
+<p>Choisissez une exécution pour lire ses opérations, erreurs et reprises. Filtrez par année si nécessaire.</p>
+</div>
+<div class="table-tools">
+<label class="download-limit">Année des logs<select id="logs-year">
+<option value="0">Toutes les années</option>
+</select>
+</label>
+<a class="button quiet export-link" data-export-type="events" data-year-selector="logs-year" href="http://127.0.0.1:8765/api/collecte/export?type=events">Exporter CSV</a>
+<button id="refresh-events" class="button quiet" type="button">Actualiser</button>
+<button id="clear-logs" class="button quiet" type="button">Effacer les journaux</button>
+</div>
+</div>
+<div class="run-log-tools">
+<label for="execution-select">Exécution</label>
+<select id="execution-select">
+<option value="">Journal de l’année choisie</option>
+</select>
+<button id="refresh-runs" class="button quiet" type="button">Actualiser les exécutions</button>
+</div>
+<p class="scope-note">Les journaux par exécution conservent toutes les étapes d’une tâche. Le journal annuel reste disponible pour l’historique ancien.</p>
+<div class="export-links">
+<a class="export-link" data-export-type="missing" data-year-selector="files-year" href="http://127.0.0.1:8765/api/collecte/export?type=missing">Exporter les manquants</a>
+<a class="export-link" data-export-type="reviews" data-year-selector="ticket-year" href="http://127.0.0.1:8765/api/collecte/export?type=reviews">Exporter les interventions</a>
+</div>
+<div class="log-filters" role="group" aria-label="Filtrer les événements">
+<button type="button" class="button quiet is-active" data-log-filter="all" aria-pressed="true">Tous les événements</button>
+<button type="button" class="button quiet" data-log-filter="warning" aria-pressed="false">Alertes et erreurs</button>
+<button type="button" class="button quiet" data-log-filter="error" aria-pressed="false">Erreurs uniquement</button>
+<button type="button" class="button quiet" id="download-run-log">Télécharger ce log</button>
+</div>
+<pre id="events-log" class="events-log">Les événements apparaîtront ici.</pre>
+<nav class="pagination" aria-label="Pages du journal d’activité">
+<button id="events-prev" type="button" disabled>← Plus anciens</button>
+<span id="events-page">Page 1</span>
+<button id="events-next" type="button" disabled>Suivant →</button>
+</nav>
+<p id="clear-logs-feedback" class="upload-feedback" aria-live="polite">
+</p>
+</section>
+</div>
+<footer>
+<span>JORT · Espace privé</span>
+<span>Chaque information conserve son annonce source.</span>
+</footer>
+</main>
+</div>
+<script src="health.js">
+</script>
+<script src="collecte.js">
+</script>
+<script src="identites-admin.js">
+</script>
+</body>
+</html>

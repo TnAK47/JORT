@@ -1,0 +1,49 @@
+# Données, preuves et archives locales
+data/
+documents/
+dist/sources/
+dist/data.json
+dist/data-lite.js
+dist/publication.json
+orga/data/
+orga/tmp/
+
+# Environnements et binaires locaux
+.venv/
+tools/pgsql/
+tmp/
+.documentation-validation/
+outputs/
+
+# Secrets et configuration de poste
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*credentials*.json
+*secrets*.json
+
+# Bases, sauvegardes et journaux
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+*.log
+*.tmp
+*.pid
+*.lock
+
+# Caches et fichiers compilés
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+node_modules/
+
+# Aperçus locaux, exports et raccourcis Windows
+apercu-*.png
+*.lnk
