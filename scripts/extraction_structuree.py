@@ -92,7 +92,7 @@ def complement(announcements,entities,relations):
                 announcement_id=aid,quote=flat(quote),status='extrait_automatiquement',role_family=family))
         # Split within clauses. Representatives are subjects of their own fact,
         # never owners/sellers inferred from their signing a document.
-        rx=re.compile(rf'(?P<action>nomination\s+de|nommer|d[eé]signation\s+de|renouvellement\s+(?:des\s+fonctions\s+)?de)\s+(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?)\s+(?P<name>[^.;:]{{2,100}}?)\s+(?:(?:repr[eé]sentant(?:e)?\s+de\s+(?:la\s+)?soci[eé]t[eé]\s+(?P<represented>[^.;:]{{2,130}}?))\s+)?(?:en\s+qualit[eé]\s+(?:de\s+|d[’\']\s*)|en\s+tant\s+que|comme)\s*(?P<role>{_ROLE})',re.I|re.S)
+        rx=re.compile(rf'(?P<action>nomination\s+de|nommer|d[eé]signation\s+de|renouvellement\s+(?:(?:des\s+fonctions|du\s+mandat|des\s+mandats)\s+)?de)\s+(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?)\s+(?P<name>[^.;:]{{2,100}}?)\s+(?:(?:repr[eé]sentant(?:e)?\s+de\s+(?:la\s+)?soci[eé]t[eé]\s+(?P<represented>[^.;:]{{2,130}}?))\s+)?(?:en\s+(?:sa\s+)?qualit[eé]\s+(?:de\s+|d[’\']\s*)|en\s+tant\s+que|comme)\s*(?P<role>{_ROLE})',re.I|re.S)
         if primary and a['publication_type']!='convocation':
             for m in rx.finditer(text):
                 name=flat(m['name'])
@@ -105,7 +105,7 @@ def complement(announcements,entities,relations):
                     represented=party(m['represented'],'societe')
                     link(e,represented,'représentant','role_publie',m[0],m.start(),m.end())
         # Keep named persons even when the action/role is not recognized.
-        mention=re.compile(r'\b(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?)\s+(?P<name>[A-ZÀ-ÖØ-Þ][\w’\'.-]+(?:\s+(?:(?:ben|bin|el|al|de)\s+)?[A-ZÀ-ÖØ-Þ][\w’\'.-]+){1,4})')
+        mention=re.compile(r'\b(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)\s+(?P<name>[A-ZÀ-ÖØ-Þ][\w’\'.-]+(?:\s+(?:(?:ben|bin|el|al|de)\s+)?[A-ZÀ-ÖØ-Þ][\w’\'.-]+){1,4})')
         for m in mention.finditer(text):
             name=flat(m['name'])
             if _valid_person(name):party(name)
@@ -152,9 +152,30 @@ def complement(announcements,entities,relations):
         relevant=[r for r in relations if str(r['announcement_id'])==aid]
         if a['publication_type']=='convocation':
             for r in relevant:r['assertion_status']='propose'
-        missing_role=bool(re.search(r'\bnomination\s+de\s+(?:Mr\.?|Monsieur|Madame|Mme\.?)',text,re.I)) and not any(r.get('event_type') in ('appointment','nomination') for r in relevant)
-        a['extraction_quality']='partielle' if missing_role or (a.get('title_review_required') and len(text.strip())>80) else 'exploitable'
-        a['quality_reasons']=['nomination_sans_role_reconnu'] if missing_role else ['designation_a_preciser'] if a.get('title_review_required') else []
+        # Une action et un rôle connus dans la même phrase doivent produire un
+        # lien. Ce contrôle ne crée rien : il rend visible une lacune de règle
+        # plutôt que de qualifier l'annonce d'entièrement exploitable.
+        action_role=re.compile(
+            rf"(?:nomination\s+de|nommer|d[eé]signation\s+de|renouvellement\s+(?:(?:des\s+fonctions|du\s+mandat|des\s+mandats)\s+)?de)\s+"
+            rf"(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)\s+(?P<name>[^,.;:]{{2,110}}?)\s+"
+            rf"(?:en\s+(?:sa\s+)?qualit[eé]\s+(?:de\s+|d['’]\s*)|en\s+tant\s+que|comme)\s*(?P<role>{_ROLE})", re.I | re.S)
+        uncovered=[]
+        for candidate in action_role.finditer(text):
+            name=flat(candidate['name'])
+            role=flat(candidate['role']).casefold()
+            if not _valid_person(name):
+                continue
+            candidates={e['id'] for e in local if e.get('type')=='personne' and normalize_name(e.get('name'))==normalize_name(name)}
+            linked=any(r.get('from') in candidates and normalize_name(r.get('role'))==normalize_name(role) for r in relevant)
+            if not linked:
+                uncovered.append((name,role))
+        reasons=[]
+        if uncovered:
+            reasons.append('role_explicite_sans_lien')
+        if a.get('title_review_required') and len(text.strip())>80:
+            reasons.append('designation_a_preciser')
+        a['extraction_quality']='partielle' if reasons else 'exploitable'
+        a['quality_reasons']=reasons
         for e in local:
             quoted=e.get('name_as_published') or e['name']
             if e['type']=='personne':quoted=e['name']

@@ -12,9 +12,9 @@ _LABEL = re.compile(
     re.I,
 )
 _NEXT_FIELD = re.compile(r"\s+(?:type\s+(?:(?:de\s+)?(?:la\s+)?soci.{0,3}t.{0,3}|d'entreprise)|capital(?:\s+souscrit)?\b|montant\s+du\s+capital|si.{0,3}ge\s+social|adresse\b|objet(?:\s+de\s+l'entreprise|\s+social)?\b|objectifs\b|date\b|identifiant\b|dur.{0,3}e\b|nombre\s+d'actions|forme\s+juridique)\s*:?", re.I)
-ENTITY_EXTRACTION_VERSION = 10
+ENTITY_EXTRACTION_VERSION = 11
 TITLE_EXTRACTION_VERSION = 3
-_ROLE = r"(?:commissaire\s+aux\s+comptes(?:\s+(?:titulaire|suppl[eé]ant))?|pr[eé]sident(?:e)?\s+directeur(?:trice)?\s+g[eé]n[eé]ral(?:e)?|directeur(?:trice)?\s+g[eé]n[eé]ral(?:e)?\s+adjoint(?:e)?|membre\s+fondateur|membre(?:\s+du\s+conseil(?:\s+d['’]administration)?)?|fondateur|fondatrice|vice\s*[-–]?\s*pr[eé]sident(?:e)?|pr[eé]sident(?:e)?(?:\s+du\s+conseil(?:\s+d['’]administration)?)?|directeur(?:trice)?(?:\s+g[eé]n[eé]ral(?:e)?)?|secr[eé]taire(?:\s+g[eé]n[eé]rale?)?|tr[eé]sori[eè]r(?:e|e)?|g[eé]rant(?:e)?|administrateur(?:trice)?(?:\s+d[eé]l[eé]gu[eé](?:e)?)?)"
+_ROLE = r"(?:commissaire\s+aux\s+comptes(?:\s+(?:titulaire|suppl[eé]ant))?|pr[eé]sident(?:e)?\s+directeur(?:trice)?\s+g[eé]n[eé]ral(?:e)?|directeur(?:trice)?\s+g[eé]n[eé]ral(?:e)?\s+adjoint(?:e)?|membre\s+fondateur|membre(?:\s+du\s+conseil(?:\s+d['’]administration)?)?|fondateur|fondatrice|vice\s*[-–]?\s*pr[eé]sident(?:e)?|pr[eé]sident(?:e)?(?:\s+du\s+conseil(?:\s+d['’]administration)?)?|directeur(?:trice)?(?:\s+g[eé]n[eé]ral(?:e)?)?|secr[eé]taire(?:\s+g[eé]n[eé]rale?)?|tr[eé]sori[eè]r(?:e|e)?|g[eé]rant(?:e)?|liquidateur(?:trice)?|repr[eé]sentant(?:e)?\s+l[eé]gal(?:e)?|administrateur(?:trice)?(?:\s+d[eé]l[eé]gu[eé](?:e)?)?)"
 _PERSON = re.compile(r"^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+(?:(?:ben|bin|bou|abou|el|al|ould|ouled|bint)\s+)?[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){1,4}$")
 
 # Act headings may wrap across several PDF lines, or share the last line
@@ -318,6 +318,30 @@ def _governance_mentions(text):
         if boundary:
             section = section[:boundary.start()]
         event = 'renewal' if re.search(r'renouvel|recondu', text[max(0, heading.start()-160):heading.start()], re.I) else 'role_publie'
+        # Les JORT utilisent parfois une civilité collective : « Messieurs A,
+        # B et C ». Le titre « administrateurs suivants » apporte alors le
+        # rôle à chacun, sans créer de lien depuis une simple cooccurrence.
+        plural = re.search(r"\b(?:Messieurs|Mesdames)\s+(?P<names>[^.;:]{2,900})", section, re.I | re.S)
+        if plural:
+            listed = plural.group('names')
+            stop = re.search(r"\b(?:et\s+)?(?:la|le)\s+soci[eé]t[eé]\b", listed, re.I)
+            if stop:
+                listed = listed[:stop.start()]
+            cursor = 0
+            for raw in re.split(r"\s*(?:,|\bet\b)\s*", listed, flags=re.I):
+                name = _norm(re.sub(rf"^(?:{civil})\s+", "", raw, flags=re.I)).strip(' .;')
+                if not _valid_person(name):
+                    continue
+                position = listed.casefold().find(raw.casefold(), cursor)
+                if position < 0:
+                    continue
+                cursor = position + len(raw)
+                name_offset = raw.casefold().find(name.casefold())
+                name_start = start + plural.start('names') + position + max(0, name_offset)
+                name_end = name_start + len(name)
+                mentions.append(dict(name=name, type='personne', role='administrateur', start=name_start,
+                                     end=name_end, event_type=event,
+                                     quote=_norm(text[heading.start():name_end])))
         for item in re.finditer(r"(?:^|,|\bet\b)\s*(?P<item>.*?)(?=,|\bet\b|$)", section, re.I | re.S):
             raw = item.group('item').strip(' \n\t.;-•')
             member = re.match(rf"(?:(?:la|le)\s+)?(?P<kind>soci[eé]t[eé]|{civil})\s+(?P<name>.+)", raw, re.I | re.S)
@@ -332,6 +356,32 @@ def _governance_mentions(text):
             name_end = name_start + len(member.group('name').rstrip(' \n\t.;'))
             mentions.append(dict(name=name, type=kind, role='administrateur', start=name_start,
                                  end=name_end, event_type=event, quote=_norm(text[heading.start():name_end])))
+    # Le rôle peut être publié avant une liste : « nomination de deux nouveaux
+    # administrateurs, en l'occurrence Mr X et Mr Y ». La liste reste bornée à
+    # cette décision et chaque nom doit conserver sa propre preuve.
+    collective = re.compile(
+        r"\b(?P<action>nomination|d[eé]signation|renouvellement)\s+(?:de\s+)?"
+        r"(?:(?:\d+|un|une|deux|trois|quatre|cinq|plusieurs)\s+)?(?:nouveaux?\s+|nouvelles?\s+)?"
+        r"(?P<role>administrateurs?|commissaires?\s+aux\s+comptes)\b(?P<tail>.{0,700})", re.I | re.S)
+    named = re.compile(
+        rf"\b{civil}\s+(?P<name>[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+(?:(?i:ben|bin|bou|abou|el|al|ould|ouled|bint|bt)\s+)?[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){{1,4}})")
+    for action in collective.finditer(text):
+        tail = action.group('tail')
+        boundary = re.search(r"(?:[.;]|\n\s*(?:\d+[-)]|[A-Z0-9]{4,}))", tail)
+        if boundary:
+            tail = tail[:boundary.start()]
+        role = _fold(action.group('role'))
+        role = 'administrateur' if role.startswith('administrateur') else 'commissaire aux comptes'
+        event = 'renewal' if _fold(action.group('action')).startswith('renouvel') else 'appointment'
+        for person in named.finditer(tail):
+            name = _norm(person.group('name'))
+            if not _valid_person(name):
+                continue
+            name_start = action.start('tail') + person.start('name')
+            name_end = action.start('tail') + person.end('name')
+            mentions.append(dict(name=name, type='personne', role=role, start=name_start,
+                                 end=name_end, event_type=event,
+                                 quote=_norm(text[action.start():name_end])))
     # In prose the role can precede the name: "le mandat du Directeur Général Mr X".
     role_first = re.compile(
         rf"(?:(?:le\s+)?mandat\s+(?:du|de\s+la|de)|(?:les\s+)?fonctions\s+(?:du|de\s+la|de))\s+"
@@ -358,10 +408,16 @@ def _relations(text, aid, org_id, entities):
     """Return links only where role and plausible personal name share a short phrase."""
     found = []
     patterns = [
+        # Forme fréquente des annonces de constitution : « Gérance :
+        # Monsieur X est nommé gérant ».
+        (re.compile(r"g[eé]rance\s*:\s*(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)?\s*(?P<name>[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+(?:(?i:ben|bin|bou|abou|el|al|ould|ouled|bint|bt)\s+)?[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){1,4})\s+(?:est|a\s+[eé]t[eé]|sera)\s+(?:nomm[eé]|d[eé]sign[eé]|[eé]lu(?:e)?)\s+(?:nouveau\s+|nouvelle\s+)?(?P<role>g[eé]rant(?:e)?)", re.I), "appointment"),
+        # Les noms sans civilité sont admis uniquement si l'action et le rôle
+        # figurent dans la même phrase : « Fathi Ghrissi est nommé gérant ».
+        (re.compile(r"(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)?\s*(?P<name>[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+(?:(?i:ben|bin|bou|abou|el|al|ould|ouled|bint|bt)\s+)?[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){1,4})\s+(?:est|a\s+[eé]t[eé]|sera)\s+(?:nomm[eé]|d[eé]sign[eé]|[eé]lu(?:e)?)\s+(?:nouveau\s+|nouvelle\s+)?(?P<role>" + _ROLE + r")", re.I), "appointment"),
         (re.compile(rf"(?P<role>{_ROLE})\s+(?:de\s+l'association\s*:?)?\s*:\s*(?P<name>[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){{1,3}})", re.I), "role_publie"),
         (re.compile(rf"(?P<name>[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){{1,3}})\s*:\s*(?P<role>{_ROLE})(?:\s+de\s+l'association)?", re.I), "role_publie"),
         (re.compile(rf"(?:nomination|nommer|d[eé]signation|d[eé]signer|[eé]lection|[eé]lire)\s+(?:de\s+)?(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?|Mlle\.?)?\s*(?P<name>[^,.;:]{{2,110}}?)\s+(?:en\s+tant\s+que|en\s+qualit.{{0,2}}\s+d['’]?|au\s+poste\s+de|aux\s+fonctions\s+de|comme)\s*(?:nouvel(?:le)?\s+|nouveau\s+)?(?P<role>{_ROLE})", re.I), "appointment"),
-        (re.compile(rf"(?:reconduction(?:\s+des\s+fonctions)?|renouvellement)\s+(?:de\s+)?(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?|Mlle\.?)?\s*(?P<name>[^,.;:]{{2,110}}?)\s+(?:en\s+tant\s+que|en\s+qualit.{{0,2}}\s+d['’]?|au\s+poste\s+de|aux\s+fonctions\s+de|comme)\s*(?P<role>{_ROLE})", re.I), "renewal"),
+        (re.compile(rf"(?:reconduction(?:\s+des\s+fonctions)?|renouvellement)\s+(?:(?:du|de|des)\s+)?(?:mandats?\s+(?:du|de|des)\s+)?(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?|Mlle\.?)?\s*(?P<name>[^,.;:]{{2,110}}?)\s+(?:en\s+tant\s+que|en\s+(?:sa\s+)?qualit.{{0,2}}\s+d['’]?|au\s+poste\s+de|aux\s+fonctions\s+de|comme)\s*(?P<role>{_ROLE})", re.I), "renewal"),
         (re.compile(rf"d[eé]mission\s+(?:de\s+)?(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?|Mlle\.?)?\s*(?P<name>[^,.;:]{{2,110}}?)\s+de\s+ses\s+fonctions\s+d['’]?\s*(?P<role>{_ROLE})", re.I), "resignation"),
         (re.compile(rf"(?:r[eé]vocation|destitution)\s+(?:de\s+)?(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?|Mlle\.?)?\s*(?P<name>[^,.;:]{{2,110}}?)\s+de\s+(?:son\s+poste|ses\s+fonctions)\s+d['’]?\s*(?P<role>{_ROLE})", re.I), "revocation"),
     ]
@@ -474,7 +530,7 @@ def _capital_subscriptions(text, aid, org_id, entities, existing_relations=()):
     quote = _norm(text[reserved.start():reserved.end()])
     subscribers = []
     person_pattern = re.compile(
-        r"\b(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?)\s+(?P<name>[^,.;]+)", re.I)
+        r"\b(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)\s+(?P<name>[^,.;]+)", re.I)
     for match in person_pattern.finditer(subscriber_list):
         raw_name = re.split(r"\s+et\s+(?=(?:aux?|à\s+la)\s+soci[eé]t[eé]s?)", match.group('name'), maxsplit=1, flags=re.I)[0]
         name = _norm(raw_name).strip(' «»"')

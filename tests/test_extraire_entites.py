@@ -75,6 +75,38 @@ Commission :
         self.assertIn("Mohamed Jerbi", result["relations"][0]["quote"])
         self.assertEqual(result["relations"][0]["role"], "administrateur")
 
+    def test_explicit_mandates_and_gestion_are_extracted_with_people(self):
+        text = """Société : ONE TECH MOBILE
+Il a été décidé le renouvellement du mandat de M. Selim Ferchiou en sa qualité de directeur général.
+Le renouvellement du mandat des administrateurs suivants : Messieurs Hedi Karim Sellami, Slim Sellami et Selim Ferchiou.
+Gérance : Monsieur Hichem Bchir est nommé gérant de la société."""
+        result = enrichir([{"id": "roles", "reference": "2017R03405SANB2", "text": text}])
+        names = {entity["id"]: entity["name"] for entity in result["entities"]}
+        links = {(names[relation["from"]], relation["role"], relation["event_type"])
+                 for relation in result["relations"]}
+        self.assertIn(("Selim Ferchiou", "directeur général", "renewal"), links)
+        self.assertIn(("Selim Ferchiou", "administrateur", "renewal"), links)
+        self.assertIn(("Hichem Bchir", "gérant", "appointment"), links)
+        self.assertEqual(result["stats"]["personnes"], 4)
+
+    def test_liquidator_is_an_explicit_role(self):
+        text = "Société : Exemple SA\nLes associés ont décidé de nommer Mr Hichem Bchir en tant que liquidateur."
+        result = enrichir([{"id": "liquidation", "reference": "2010G00420SRLB2", "text": text}])
+        person = next(entity for entity in result["entities"] if entity["type"] == "personne")
+        relation = next(iter(result["relations"]))
+        self.assertEqual(person["name"], "Hichem Bchir")
+        self.assertEqual((relation["role"], relation["event_type"]), ("liquidateur", "appointment"))
+
+    def test_collective_appointment_links_each_named_person(self):
+        text = """Société : Exemple SA
+La nomination de deux nouveaux administrateurs non médecins, en l'occurrence Mr Radhouane Zouari et Mr Salah Kooli, est approuvée."""
+        result = enrichir([{"id": "collectif", "reference": "2017R03410SANB2", "text": text}])
+        names = {entity["id"]: entity["name"] for entity in result["entities"]}
+        links = {(names[relation["from"]], relation["role"], relation["event_type"])
+                 for relation in result["relations"]}
+        self.assertEqual(links, {("Radhouane Zouari", "administrateur", "appointment"),
+                                 ("Salah Kooli", "administrateur", "appointment")})
+
 
 if __name__ == "__main__":
     unittest.main()
