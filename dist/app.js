@@ -226,7 +226,7 @@
       const button = document.createElement('button');
       button.type = 'button'; button.className = tag.className + ' entity-explore';
       button.textContent = tag.textContent + ' ↗'; button.title = 'Explorer les liens de ' + entity.name;
-      button.addEventListener('click', () => { showView('reseau'); focusRoot(graphNodeKey(entity)); });
+      button.addEventListener('click', () => openNetworkFromEntity(graphNodeKey(entity)));
       tag.replaceWith(button);
     });
     list.querySelectorAll('[data-announcement]').forEach(button => button.classList.toggle('selected', button.dataset.announcement===String(id)));
@@ -234,8 +234,81 @@
   }
 
   const tabs = [...document.querySelectorAll('.tab')];
+  const HISTORY_MARKER = 'jort-navigation-v1';
   let currentView = '';
-  function showView(view, updateHash = true) {
+  let restoringHistory = false;
+  function navigationSnapshot(view = currentView || 'entites') {
+    return {
+      [HISTORY_MARKER]: true,
+      view,
+      entity: { query: entitySearch?.value || '', type: entityType || '', page: entityPage || 0 },
+      announcements: { query: search.value || '', category: categoryFilter.value || 'toutes', source: sourceFilter.value || 'tous', page: pageIndex || 0, selected: selectedAnnouncement || null, fixedEntity: fixedEntity ? { id: fixedEntity.id, name: fixedEntity.name } : null },
+      network: { query: networkSearch?.value || '', root: rootOverride || currentRoot || organizationSelect?.value || '', depth: graphDepth || 2, event: eventFilter?.value || 'all', page: pivotPage || 0 },
+      exact: exactSearchEnabled
+    };
+  }
+  function navigationUrl(state) {
+    const url = new URL(window.location.href);
+    url.hash = state.view === 'reseau' ? 'liens' : state.view;
+    // Les liens directs existants restent utilisables, mais ils suivent le contexte affiché.
+    if (state.view === 'reseau' && state.network.root) url.searchParams.set('entite', state.network.root);
+    else url.searchParams.delete('entite');
+    if (state.view === 'annonces' && state.announcements.selected) url.searchParams.set('annonce', state.announcements.selected);
+    else url.searchParams.delete('annonce');
+    return url.pathname + url.search + url.hash;
+  }
+  function writeNavigationState(mode = 'replace', view = currentView) {
+    if (restoringHistory) return;
+    const state = navigationSnapshot(view);
+    history[mode === 'push' ? 'pushState' : 'replaceState'](state, '', navigationUrl(state));
+  }
+  function syncEntityTypeButtons() {
+    document.querySelectorAll('[data-entity-type]').forEach(button => {
+      const active = button.dataset.entityType === entityType;
+      button.classList.toggle('selected', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+  function restoreNavigationState(state) {
+    if (!state || !state[HISTORY_MARKER]) {
+      showView(location.hash === '#liens' ? 'reseau' : location.hash === '#annonces' ? 'annonces' : 'entites', false);
+      return;
+    }
+    restoringHistory = true;
+    try {
+      const entityState = state.entity || {};
+      const announcementState = state.announcements || {};
+      const networkState = state.network || {};
+      entitySearch.value = entityState.query || '';
+      entityType = entityState.type || '';
+      entityPage = Math.max(0, Number(entityState.page) || 0);
+      syncEntityTypeButtons();
+      search.value = announcementState.query || '';
+      categoryFilter.value = announcementState.category || 'toutes';
+      if ([...sourceFilter.options].some(option => option.value === announcementState.source)) sourceFilter.value = announcementState.source;
+      pageIndex = Math.max(0, Number(announcementState.page) || 0);
+      selectedAnnouncement = announcementState.selected || null;
+      fixedEntity = announcementState.fixedEntity || null;
+      if (fixedEntity) {
+        entityFilter.innerHTML = `<option value="">Toutes les entités trouvées</option><option value="${esc(fixedEntity.id)}">${esc(fixedEntity.name)}</option>`;
+        entityFilter.value = fixedEntity.id;
+        entityFilter.hidden = false;
+      } else {
+        entityFilter.value = '';
+      }
+      exactSearchEnabled = Boolean(state.exact);
+      exactSearchControls.forEach(control => { control.checked = exactSearchEnabled; });
+      networkSearch.value = networkState.query || '';
+      pivotPage = Math.max(0, Number(networkState.page) || 0);
+      graphDepth = Math.max(1, Math.min(4, Number(networkState.depth) || 2));
+      if ([...eventFilter.options].some(option => option.value === networkState.event)) eventFilter.value = networkState.event;
+      rootOverride = networkState.root || '';
+      showView(state.view || 'entites', false);
+    } finally {
+      restoringHistory = false;
+    }
+  }
+  function showView(view, updateHistory = true, historyMode = 'replace') {
     if(!['entites','annonces','reseau'].includes(view))view='entites';
     const isNetwork = view === 'reseau';
     const wasHidden = document.getElementById('reseau-view').hidden;
@@ -245,12 +318,10 @@
     document.getElementById('reseau-view').hidden = !isNetwork;
     document.body.classList.toggle('explorer-mode', isNetwork);
     document.body.classList.toggle('entity-mode',view==='entites');
-    if (updateHash) history.replaceState(null, '', isNetwork ? '#liens' : '#'+view);
-    if(view!==currentView) {
-      currentView=view;
-      if(view==='entites')renderEntities();
-      if(view==='annonces')renderList();
-    }
+    currentView = view;
+    if (updateHistory) writeNavigationState(historyMode, view);
+    if(view==='entites') renderEntities();
+    if(view==='annonces') renderList();
     if (isNetwork) renderGraph(!wasHidden);
   }
   tabs.forEach(tab => {
@@ -265,6 +336,7 @@
   document.querySelector('.brand')?.addEventListener('click', () => showView('entites'));
   document.querySelector('.hero-links a')?.addEventListener('click',()=>showView('entites'));
   window.addEventListener('hashchange',()=>showView(location.hash==='#liens'&&(currentRoot||rootOverride)?'reseau':location.hash==='#annonces'?'annonces':'entites',false));
+  window.addEventListener('popstate', event => restoreNavigationState(event.state));
   [categoryFilter, sourceFilter, entityFilter].forEach(control => control.addEventListener('change', () => { pageIndex = 0; renderList(); }));
   exactSearchControls.forEach(control => control.addEventListener('change', () => {
     exactSearchEnabled = control.checked;
@@ -301,6 +373,7 @@
       const result=await api('/api/restitution/entities',{q:entitySearch.value,exact:exactSearchEnabled?1:0,type:entityType,page:entityPage,limit:24,featured:1},entityController.signal);
       if(sequence!==entitySequence)return;
       entityPage=result.page;
+      if (currentView === 'entites' && !restoringHistory) writeNavigationState('replace', 'entites');
       document.getElementById('entity-summary').textContent=`${result.total.toLocaleString('fr-FR')} entités · ${entitySearch.value.trim()?'résultats par pertinence':'les plus connectées en premier'} · ${((performance.now()-started)/1000).toFixed(1)} s`;
       const pageCount=Math.max(1,Math.ceil(result.total/result.limit));
       document.getElementById('entity-page').textContent=`Page ${entityPage+1} sur ${pageCount}`;
@@ -311,12 +384,12 @@
         const card=document.createElement('article');card.className='discovery-card '+(node.type==='personne'?'discovery-person':'discovery-org');
         const presumed=node.resolutionMethods.some(m=>m==='same_name_presumed'||m==='organization_name_presumed');
         card.innerHTML=`<div class="discovery-card-top"><span class="entity-avatar">${node.type==='personne'?'P':node.type==='fonds_commerce'?'F':'O'}</span><span>${esc(node.type==='personne'?'Personne':categoryName(node.type))}</span>${presumed?'<span class="presumed-dot" title="Rapprochement présumé">Présumé</span>':''}</div><h3>${esc(node.name)}</h3><span class="entity-public-id">${esc(node.public_entity_id||'')}</span>${node.match?.total?`<span class="search-match ${esc(node.match.kind)}">${esc(node.match.label)}</span>`:''}<div class="discovery-numbers"><span><b>${node.occurrence_count.toLocaleString('fr-FR')}</b> occurrences</span><span><b>${node.relation_count.toLocaleString('fr-FR')}</b> relations</span></div><div class="discovery-actions"><button type="button" class="explore-entity">Ouvrir la fiche et le réseau ↗</button><button type="button" class="entity-notices">Voir ses annonces →</button></div>`;
-        card.querySelector('.explore-entity').addEventListener('click',()=>{rootOverride=node.id;showView('reseau');});
+        card.querySelector('.explore-entity').addEventListener('click',()=>openNetworkFromEntity(node.id));
         card.querySelector('.entity-notices').addEventListener('click',()=>{
           fixedEntity=node;search.value='';rankedQuery='';pageIndex=0;categoryFilter.value='toutes';sourceFilter.value='tous';
           entityFilter.innerHTML=`<option value="">Toutes les entités trouvées</option><option value="${esc(node.id)}">${esc(node.name)}</option>`;
           entityFilter.value=node.id;entityFilter.hidden=false;
-          showView('annonces');
+          showView('annonces', true, 'push');
         });
         entityGrid.appendChild(card);
       }
@@ -329,7 +402,7 @@
   entitySearch.addEventListener('input',()=>{clearTimeout(entityTimer);entityTimer=setTimeout(()=>{entityPage=0;renderEntities();},300);});
   document.querySelectorAll('[data-entity-type]').forEach(button=>button.addEventListener('click',()=>{
     entityType=button.dataset.entityType;entityPage=0;
-    document.querySelectorAll('[data-entity-type]').forEach(other=>{const active=other===button;other.classList.toggle('selected',active);other.setAttribute('aria-pressed',String(active));});renderEntities();
+    syncEntityTypeButtons();renderEntities();
   }));
   document.getElementById('entity-prev').addEventListener('click',()=>{entityPage=Math.max(0,entityPage-1);renderEntities();});
   document.getElementById('entity-next').addEventListener('click',()=>{entityPage+=1;renderEntities();});
@@ -529,6 +602,7 @@
     }
     const rootId=network.root,root=graphNodes.get(rootId);
     currentRoot=rootId;
+    if (!restoringHistory) writeNavigationState('replace', 'reseau');
     const allowedRelations = filteredRelations();
     const allowedAdjacency = new Map();
     allowedRelations.forEach(relation => {
@@ -733,7 +807,13 @@
       + bundle.relations.map(relation => relationMarkup(relation, from.id)).join('') + '</div>';
     bindDetailActions(); setDetailsVisible(true); highlightSelection(bundle);
   }
-  function focusRoot(id, remember = true) {
+  function openNetworkFromEntity(id) {
+    if (!id) return;
+    rootOverride = String(id);
+    activeNode = String(id);
+    showView('reseau', true, 'push');
+  }
+  function focusRoot(id, remember = true, pushHistory = true) {
     if (!id) return;
     if (remember && currentRoot && currentRoot !== String(id)) {
       pivotHistory.push(currentRoot);
@@ -743,13 +823,14 @@
     if (eventFilter) eventFilter.value = 'all';
     rootOverride = String(id);
     activeNode = String(id);
+    if (pushHistory && currentView === 'reseau' && !restoringHistory) writeNavigationState('push', 'reseau');
     renderGraph();
     const back = document.getElementById('graph-back');
     if (back) back.disabled = !pivotHistory.length;
   }
   document.getElementById('graph-back')?.addEventListener('click', () => {
     const previous = pivotHistory.pop();
-    if (previous) focusRoot(previous, false);
+    if (previous) focusRoot(previous, false, false);
   });
   let graphSearchTimer;
   function searchGraph() {
@@ -955,8 +1036,13 @@
   const requestedAnnouncement = new URLSearchParams(location.search).get('annonce');
   const requestedEntity = new URLSearchParams(location.search).get('entite');
   if (requestedAnnouncement) selectAnnouncement(requestedAnnouncement);
-  if (location.hash === '#liens' && requestedEntity) showView('reseau', false);
-  else if(location.hash==='#annonces'||requestedAnnouncement)showView('annonces',false);
-  else showView('entites', false);
-  if (requestedEntity) { showView('reseau'); focusRoot(requestedEntity); }
+  if (requestedEntity) {
+    rootOverride = requestedEntity;
+    showView('reseau', false);
+  } else if(location.hash==='#annonces'||requestedAnnouncement) {
+    showView('annonces', false);
+  } else {
+    showView('entites', false);
+  }
+  writeNavigationState('replace', currentView || 'entites');
 })();
