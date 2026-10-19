@@ -235,7 +235,7 @@
     const issues = report.issues || [];
     const sizes = report.sizes || [];
     const bytes = value => value == null ? '—' : `${count((Number(value) / 1048576).toFixed(1))} Mo`;
-    const rows = sizes.map(item => `<li>${esc(item.year)} : ${item.before_bytes != null ? `${bytes(item.before_bytes)} → ${bytes(item.after_bytes)}` : `JSON ${bytes(item.json_bytes)} · SQLite ${bytes(item.sqlite_bytes)}`}</li>`).join('');
+    const rows = sizes.map(item => `<li>${esc(item.year)} : ${item.before_bytes != null ? `${bytes(item.before_bytes)} → ${bytes(item.after_bytes)}` : `Archives ${bytes(item.json_bytes)} · index local ${bytes(item.sqlite_bytes)}`}</li>`).join('');
     const paths = [...new Set(report.backups || [])].map(path => `<li><code>${esc(path)}</code></li>`).join('');
     const errors = Object.values(report.severity_counts || {}).reduce((sum,value) => sum + Number(value || 0),0);
     const duplicateSummary = report.duplicate_cleanup ? ` ${count(report.duplicate_cleanup.exact_rows_removed || 0)} ligne(s) strictement identique(s) retirée(s) ; ${count(report.duplicate_cleanup.conflicting_ids || 0)} identifiant(s) contradictoire(s) gardé(s) pour vérification.` : '';

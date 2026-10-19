@@ -168,7 +168,14 @@ def main():
         report_dir = root / 'data/maintenance/corrections-collecte'
         report_dir.mkdir(parents=True, exist_ok=True)
         atomic_write(report_dir / 'dernier-rapport.json', json.dumps(report, ensure_ascii=False, indent=2) + '\n')
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    payload = json.dumps(report, ensure_ascii=False, indent=2)
+    try:
+        print(payload)
+    except UnicodeEncodeError:
+        # Certaines consoles Windows utilisent encore CP-1252. Le rapport
+        # reste identique ; seuls les caractères non pris en charge sont
+        # échappés pour garantir une fin de commande propre.
+        print(json.dumps(report, ensure_ascii=True, indent=2))
     return 0 if report['state'] in {'ready', 'applied'} else 1
 
 

@@ -564,12 +564,12 @@
 <div class="admin-action-grid">
 <article>
 <h3>Contrôler les données</h3>
-<p>Lecture seule : vérifie annonces, sources, pages, liens, PDF sur G: et bases SQLite. Le contrôle global vérifie aussi les références des interventions.</p>
+<p>Lecture seule : vérifie annonces, sources, pages, liens, PDF sur G:, archives annuelles locales et cohérence de la base PostgreSQL de consultation. Le contrôle global vérifie aussi les références des interventions.</p>
 <button type="button" class="button quiet job-action" data-action="maintenance_check">Vérifier la base</button>
 </article>
 <article>
 <h3>Réparer les anomalies</h3>
-<p>Corrige les anomalies reconnues sans relire les PDF : titres récupérables, synchronisation SQLite et mise à jour des interventions. Une copie de sécurité précède chaque modification.</p>
+<p>Corrige les anomalies reconnues sans relire les PDF : titres récupérables, synchronisation des archives annuelles, publication dans la base de consultation et mise à jour des interventions. Une copie de sécurité précède chaque modification.</p>
 <button type="button" class="button quiet job-action" data-action="maintenance_repair">Réparer la base</button>
 </article>
 </div>
@@ -584,7 +584,7 @@
 </article>
 <article>
 <h3>Corriger les noms parasités</h3>
-<p>Détecte les personnes dont le nom a absorbé un mot de la phrase suivante, par exemple « Nom. En ». Réextrait uniquement les annonces concernées, supprime l’occurrence erronée lorsqu’une occurrence corrigée est prouvée dans la même annonce, puis met à jour le regroupement. Les annonces et passages sources restent inchangés.</p>
+<p>Détecte les personnes dont le nom a absorbé un mot de la phrase suivante, par exemple « Nom. En ». Réextrait uniquement les annonces concernées et corrige ce suffixe certain ; si une occurrence corrigée existe déjà dans la même annonce, le doublon est réuni. Les annonces et passages sources restent inchangés.</p>
 <button type="button" class="button quiet job-action" data-action="maintenance_clean_parasitic_extractions" data-maintenance-scope="all">Nettoyer les extractions parasitées</button>
 </article>
 <article>
@@ -606,7 +606,7 @@
 </article>
 <article>
 <h3>Optimiser le stockage</h3>
-<p>Vérifie et compacte les bases SQLite annuelles pour accélérer les requêtes et récupérer de l’espace. Une copie de sécurité précède chaque base modifiée.</p>
+<p>Vérifie et compacte les archives annuelles locales pour réduire leur encombrement. La recherche utilise la base PostgreSQL de consultation. Une copie de sécurité précède chaque archive modifiée.</p>
 <button type="button" class="button quiet job-action" data-action="maintenance_optimize">Optimiser la base</button>
 </article>
 </div>
@@ -668,7 +668,7 @@
 <div class="admin-action-grid">
 <article>
 <h3>Sauvegarder les données</h3>
-<p>Crée une copie locale cohérente des bases JSON et SQLite. Les PDF sources ne sont pas dupliqués.</p>
+<p>Crée une copie locale cohérente des archives annuelles. Les PDF sources ne sont pas dupliqués.</p>
 <button type="button" class="button quiet job-action" data-action="maintenance_backup" data-year-selector="backup-year" data-scope-selector="backup-scope">Créer une sauvegarde</button>
 </article>
 <article>
