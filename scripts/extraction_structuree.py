@@ -64,7 +64,8 @@ def dates_published(text):
 
 def complement(announcements,entities,relations):
     # Imported lazily: extraire_entites calls this after its own extraction.
-    from extraire_entites import ENTITY_EXTRACTION_VERSION,_ROLE,_valid_person,_cin_near,_event_date_evidence
+    from extraire_entites import (ENTITY_EXTRACTION_VERSION,_ROLE,_valid_person,_cin_near,_event_date_evidence,
+        nettoyer_nom_personne_extrait)
     for a in announcements:
         aid=str(a['id']);text=str(a.get('text') or '');local=[e for e in entities if str(e['announcement_id'])==aid]
         for e in local:
@@ -76,7 +77,8 @@ def complement(announcements,entities,relations):
         a['search_visible']=a['publication_type']!='convocation'
         def party(name,kind='personne'):
             name=flat(name).strip(' «»".,;')
-            if kind!='personne':name=organization_label(name)
+            if kind=='personne':name=nettoyer_nom_personne_extrait(name)
+            else:name=organization_label(name)
             existing=next((e for e in local if e['type']==kind and normalize_name(e['name'])==normalize_name(name)),None)
             if existing:return existing
             eid=aid+':mention:'+hashlib.sha256((kind+'|'+normalize_name(name)).encode()).hexdigest()[:20]
@@ -95,7 +97,7 @@ def complement(announcements,entities,relations):
         rx=re.compile(rf'(?P<action>nomination\s+de|nommer|d[eé]signation\s+de|renouvellement\s+(?:(?:des\s+fonctions|du\s+mandat|des\s+mandats)\s+)?de)\s+(?:Monsieur|Madame|Mr\.?|Mme\.?|M\.?)\s+(?P<name>[^.;:]{{2,100}}?)\s+(?:(?:repr[eé]sentant(?:e)?\s+de\s+(?:la\s+)?soci[eé]t[eé]\s+(?P<represented>[^.;:]{{2,130}}?))\s+)?(?:en\s+(?:sa\s+)?qualit[eé]\s+(?:de\s+|d[’\']\s*)|en\s+tant\s+que|comme)\s*(?P<role>{_ROLE})',re.I|re.S)
         if primary and a['publication_type']!='convocation':
             for m in rx.finditer(text):
-                name=flat(m['name'])
+                name=nettoyer_nom_personne_extrait(flat(m['name']))
                 if not _valid_person(name):continue
                 e=party(name);cin=_cin_near(text,m.start('name'),m.end('name'))
                 if cin:e.update(cin=cin,identity_match_status='a_verifier')
@@ -107,7 +109,7 @@ def complement(announcements,entities,relations):
         # Keep named persons even when the action/role is not recognized.
         mention=re.compile(r'\b(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)\s+(?P<name>[A-ZÀ-ÖØ-Þ][\w’\'.-]+(?:\s+(?:(?:ben|bin|el|al|de)\s+)?[A-ZÀ-ÖØ-Þ][\w’\'.-]+){1,4})')
         for m in mention.finditer(text):
-            name=flat(m['name'])
+            name=nettoyer_nom_personne_extrait(flat(m['name']))
             if _valid_person(name):party(name)
         # Une liste d'associés fondateurs est une information explicite de
         # constitution : chaque personne relève bien d'un lien avec la société.
@@ -123,14 +125,14 @@ def complement(announcements,entities,relations):
                 section=tail[:boundary.start() if boundary else len(tail)]
                 people=[]
                 for candidate in civil.finditer(section):
-                    name=flat(candidate['name']).strip(' «»".,;')
+                    name=nettoyer_nom_personne_extrait(flat(candidate['name']).strip(' «»".,;'))
                     if _valid_person(name):
                         people.append((name,marked.end()+candidate.start('name'),marked.end()+candidate.end('name')))
                 # Certains textes donnent la liste sans civilité. Cela reste
                 # acceptable uniquement sous l'intitulé explicite trouvé ici.
                 if not people:
                     for raw in re.split(r'\s*(?:,|;|\bet\b)\s*',section):
-                        name=re.sub(r'^(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)\s+','',flat(raw),flags=re.I).strip(' «»".,;')
+                        name=nettoyer_nom_personne_extrait(re.sub(r'^(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)\s+','',flat(raw),flags=re.I).strip(' «»".,;'))
                         if not _valid_person(name):
                             continue
                         position=text.find(raw,marked.end(),marked.end()+len(section))
@@ -161,7 +163,7 @@ def complement(announcements,entities,relations):
             rf"(?:en\s+(?:sa\s+)?qualit[eé]\s+(?:de\s+|d['’]\s*)|en\s+tant\s+que|comme)\s*(?P<role>{_ROLE})", re.I | re.S)
         uncovered=[]
         for candidate in action_role.finditer(text):
-            name=flat(candidate['name'])
+            name=nettoyer_nom_personne_extrait(flat(candidate['name']))
             role=flat(candidate['role']).casefold()
             if not _valid_person(name):
                 continue

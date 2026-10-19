@@ -1,7 +1,7 @@
 """Compléter les entités et liens depuis les textes conservés, sans relire les PDF.
 
 Utilisation, serveur arrêté : python scripts/corriger_entites_et_liens.py
-Dans l'application : Entretien de la base > Compléter les titres et les liens.
+Dans l'application : Entretien de la base > Opérations avancées > Compléter les titres et les liens, ou Corriger les noms parasités.
 """
 import argparse
 from collections import defaultdict
@@ -13,7 +13,8 @@ import socket
 import uuid
 
 from collecter_2024 import save_json
-from extraire_entites import enrichir, ENTITY_EXTRACTION_VERSION, famille_role, completer_titre_annonce
+from extraire_entites import (enrichir, ENTITY_EXTRACTION_VERSION, famille_role, completer_titre_annonce,
+    nettoyer_nom_personne_extrait, nom_personne_extraction_parasitee)
 from rapprochement_identites import normaliser_nom_personne
 from referentiel_entites import registry_path, fusionner, annuler_fusion
 
@@ -25,6 +26,54 @@ def _digest(value):
 def _source_digest(announcements):
     return _digest([{key: row.get(key) for key in ('id','reference','source_id','text','pages','source_date')}
                     for row in announcements])
+
+
+def extraction_parasitee(entities):
+    """Repère une occurrence de personne qui déborde sur un connecteur de phrase."""
+    return any(row.get('type') == 'personne' and nom_personne_extraction_parasitee(row.get('name'))
+               for row in entities)
+
+
+def corriger_extractions_parasites(entities, relations, announcement_id):
+    """Corrige un suffixe de phrase certain sans altérer l’annonce ni sa preuve."""
+    entities = [dict(row) for row in entities]
+    relations = [dict(row) for row in relations]
+    fixes = []
+    for row in list(entities):
+        if row.get('type') != 'personne' or not nom_personne_extraction_parasitee(row.get('name')):
+            continue
+        before = row.get('name')
+        corrected = nettoyer_nom_personne_extrait(before)
+        target = next((candidate for candidate in entities
+                       if candidate is not row and candidate.get('type') == 'personne'
+                       and normaliser_nom_personne(candidate.get('name')) == normaliser_nom_personne(corrected)), None)
+        if target is None:
+            # Le motif est déterministe (« Nom. En ») : garder l’ID et sa
+            # preuve, mais corriger le libellé indexé pour le futur regroupement.
+            row['name'] = corrected
+            fixes.append(dict(announcement_id=announcement_id, entity_id=row['id'], replacement_id=row['id'],
+                              before=before, after=corrected, reason='suffixe_de_phrase_absorbe'))
+            continue
+        old_id, target_id = row['id'], target['id']
+        for relation in relations:
+            if relation.get('from') == old_id:
+                relation['from'] = target_id
+            if relation.get('to') == old_id:
+                relation['to'] = target_id
+        entities.remove(row)
+        fixes.append(dict(announcement_id=announcement_id, entity_id=old_id, replacement_id=target_id,
+                          before=before, after=target.get('name'), reason='suffixe_de_phrase_absorbe'))
+    # Après remappage, deux relations peuvent devenir identiques. Une seule preuve
+    # par signature est gardée ; les annonces et leurs passages restent conservés.
+    unique, seen = [], set()
+    for relation in relations:
+        signature = (relation.get('from'), relation.get('to'), normaliser_nom_personne(relation.get('role')),
+                     relation.get('type'), relation.get('event_type'), relation.get('announcement_id'))
+        if signature in seen:
+            continue
+        seen.add(signature)
+        unique.append(relation)
+    return entities, unique, fixes
 
 
 def completer_annonce(announcement, current_entities, current_relations):
@@ -86,7 +135,8 @@ def completer_annonce(announcement, current_entities, current_relations):
             if not relation.get('quote') or relation['quote'] not in normalized_text:
                 raise ValueError('Relation nouvelle sans passage source vérifiable.')
     completer_titre_annonce(announcement, entities)
-    return entities, relations, changed_titles
+    entities, relations, parasite_fixes = corriger_extractions_parasites(entities, relations, aid)
+    return entities, relations, changed_titles, parasite_fixes
 
 
 def executer(root, mode='reextract_entities', years=None, progress=None, cancelled=None,
@@ -95,14 +145,15 @@ def executer(root, mode='reextract_entities', years=None, progress=None, cancell
     from maintenance_base import _years, _read, _validated, _backup, _sync_preserving_links, _stats, _sqlite_checks, _issue
     from agregation_base import reconstruire, revision
     root = Path(root).resolve()
-    selected = _years(root, years if mode == 'reextract_entities' else None)
+    selected = _years(root, years if mode in ('reextract_entities', 'clean_parasitic_extractions') else None)
     directory = root / 'data/maintenance'
     directory.mkdir(parents=True, exist_ok=True)
     run_id = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:8]
     report = dict(id=run_id, mode=mode, years=selected, started_at=datetime.now(timezone.utc).isoformat(),
                   state='running', issues=[], issue_counts={}, severity_counts={}, repairs=[], backups=[],
                   completed_years=[], remaining_years=selected[:], can_publish=True,
-                  extraction=dict(announcements=0, reused=0, added_entities=0, added_relations=0, corrected_titles=0, failures=0))
+                  extraction=dict(announcements=0, reused=0, added_entities=0, added_relations=0, corrected_titles=0,
+                                  parasitic_occurrences_removed=0, targeted_announcements=0, failures=0))
     stopped = cancelled if callable(cancelled) else (cancelled.is_set if cancelled is not None else lambda: False)
 
     def checkpoint():
@@ -132,7 +183,8 @@ def executer(root, mode='reextract_entities', years=None, progress=None, cancell
                 report['current_year'] = selected_year
                 if progress:
                     progress(dict(year=selected_year, current=position-1, total=len(selected),
-                                  message=f'Compléter les entités et liens de {selected_year}'))
+                                  message=(f'Nettoyer les extractions parasitées de {selected_year}' if mode == 'clean_parasitic_extractions'
+                                           else f'Compléter les entités et liens de {selected_year}')))
                 annual_path = root / f'data/{selected_year}/base.json'
                 db_path = root / f'data/{selected_year}/jort-{selected_year}-fr.sqlite'
                 try:
@@ -160,13 +212,19 @@ def executer(root, mode='reextract_entities', years=None, progress=None, cancell
                         if stopped():
                             report['state'] = 'cancelled'
                             break
+                        targets = announcements
+                        if mode == 'clean_parasitic_extractions':
+                            targets = [row for row in announcements if extraction_parasitee(by_announcement[row['id']])]
+                            if not targets:
+                                report['extraction']['reused'] += len(announcements)
+                                continue
                         fingerprint = _digest([(row['id'], row.get('text', '')) for row in announcements])
                         expected = dict(version=ENTITY_EXTRACTION_VERSION, fingerprint=fingerprint)
-                        if not force and pending.get(source_id) == expected:
+                        if mode != 'clean_parasitic_extractions' and not force and pending.get(source_id) == expected:
                             report['extraction']['reused'] += len(announcements)
                             continue
                         source_ok = True
-                        for announcement in announcements:
+                        for announcement in targets:
                             if stopped():
                                 source_ok = False
                                 report['state'] = 'cancelled'
@@ -174,12 +232,16 @@ def executer(root, mode='reextract_entities', years=None, progress=None, cancell
                             aid = announcement['id']
                             try:
                                 old_entities, old_relations = by_announcement[aid], by_relations[aid]
-                                completed, connected, titles = completer_annonce(announcement, old_entities, old_relations)
+                                completed, connected, titles, parasite_fixes = completer_annonce(announcement, old_entities, old_relations)
                                 by_announcement[aid], by_relations[aid] = completed, connected
                                 report['extraction']['announcements'] += 1
+                                report['extraction']['targeted_announcements'] += int(mode == 'clean_parasitic_extractions')
                                 report['extraction']['added_entities'] += len(completed)-len(old_entities)
                                 report['extraction']['added_relations'] += len(connected)-len(old_relations)
                                 report['extraction']['corrected_titles'] += titles
+                                report['extraction']['parasitic_occurrences_removed'] += len(parasite_fixes)
+                                for fix in parasite_fixes:
+                                    report['repairs'].append(dict(rule='parasitic-person-name-v1', year=selected_year, **fix))
                                 affected.add(source_id)
                             except Exception as exc:
                                 source_ok = False
@@ -252,6 +314,8 @@ def executer(root, mode='reextract_entities', years=None, progress=None, cancell
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--annees', nargs='+', type=int, help='Par défaut : toutes les bases annuelles présentes.')
+    parser.add_argument('--mode', choices=('reextract_entities', 'clean_parasitic_extractions'), default='reextract_entities',
+                        help='Réextraction générale, ou correction ciblée des suffixes de phrase absorbés.')
     parser.add_argument('--forcer', action='store_true', help='Réexaminer aussi les textes déjà corrigés par cette version.')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
@@ -261,7 +325,7 @@ def main():
             parser.error('Le serveur fonctionne : utilisez le bouton de maintenance dans l’application.')
     from maintenance_base import _maintenance_lock
     with _maintenance_lock(root):
-        report = executer(root, years=args.annees, force=args.forcer,
+        report = executer(root, mode=args.mode, years=args.annees, force=args.forcer,
                           progress=lambda row: print(json.dumps(row, ensure_ascii=False), flush=True))
     print(json.dumps({key: report.get(key) for key in ('id','state','extraction','remaining_years','published_revision','error')}, ensure_ascii=False))
     return 1 if report['state'] == 'failed' or report['remaining_years'] else 0

@@ -2067,8 +2067,8 @@ def coordinator_collect():
 
 
 def queue_maintenance(mode,years=None,identity_entity_ids=None,identity_name=None,identity_options=None):
-    if mode not in ('check','repair','reextract_entities','merge_entities','undo_merge','connections','deduplicate_announcements','merge_duplicates','merge_person','optimize','backup','transfer_drive'): raise ValueError('Mode de maintenance invalide')
-    if mode in ('connections','reextract_entities','merge_entities','undo_merge','deduplicate_announcements','merge_duplicates','merge_person'):
+    if mode not in ('check','repair','reextract_entities','clean_parasitic_extractions','merge_entities','undo_merge','connections','deduplicate_announcements','merge_duplicates','merge_person','optimize','backup','transfer_drive'): raise ValueError('Mode de maintenance invalide')
+    if mode in ('connections','reextract_entities','clean_parasitic_extractions','merge_entities','undo_merge','deduplicate_announcements','merge_duplicates','merge_person'):
         years=None
     if years is None:
         years=sorted(int(path.parent.name) for path in (ROOT/'data').glob('[0-9][0-9][0-9][0-9]/base.json'))
@@ -2096,7 +2096,7 @@ def queue_maintenance(mode,years=None,identity_entity_ids=None,identity_name=Non
 
 def submit_job(body):
     action=body.get('action'); limit=int(body.get('limit',0))
-    if action not in ('scan','download','download_one','index','index_one','maintenance_check','maintenance_repair','maintenance_reextract_entities','maintenance_merge_entities','maintenance_undo_merge','maintenance_connections','maintenance_deduplicate_announcements','maintenance_merge_duplicates','maintenance_merge_person','maintenance_optimize','maintenance_backup','maintenance_transfer_drive') or limit not in (0,5,10,25,151): raise ValueError('Action ou quantité invalide')
+    if action not in ('scan','download','download_one','index','index_one','maintenance_check','maintenance_repair','maintenance_reextract_entities','maintenance_clean_parasitic_extractions','maintenance_merge_entities','maintenance_undo_merge','maintenance_connections','maintenance_deduplicate_announcements','maintenance_merge_duplicates','maintenance_merge_person','maintenance_optimize','maintenance_backup','maintenance_transfer_drive') or limit not in (0,5,10,25,151): raise ValueError('Action ou quantité invalide')
     years=body.get('years') or [int(body.get('year',year()))]
     if not isinstance(years,list) or not years or len(years)>datetime.now().year-1956+1: raise ValueError('Années invalides')
     years=[int(v) for v in years]

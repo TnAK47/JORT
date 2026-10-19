@@ -473,7 +473,7 @@ def _maintenance_lock(root):
 def maintenance(root, mode='check', years=None, full=True, progress=None, cancelled=None, publish=True, deep_hashes=False,
                 identity_entity_ids=None, identity_name=None, identity_options=None):
     with _maintenance_lock(root):
-        if mode in ('reextract_entities', 'merge_entities', 'undo_merge'):
+        if mode in ('reextract_entities', 'clean_parasitic_extractions', 'merge_entities', 'undo_merge'):
             from corriger_entites_et_liens import executer
             return executer(root, mode, years, progress, cancelled, publish, identity_options)
         return _maintenance(root, mode, years, full, progress, cancelled, publish, deep_hashes,

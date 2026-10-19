@@ -12,7 +12,7 @@ _LABEL = re.compile(
     re.I,
 )
 _NEXT_FIELD = re.compile(r"\s+(?:type\s+(?:(?:de\s+)?(?:la\s+)?soci.{0,3}t.{0,3}|d'entreprise)|capital(?:\s+souscrit)?\b|montant\s+du\s+capital|si.{0,3}ge\s+social|adresse\b|objet(?:\s+de\s+l'entreprise|\s+social)?\b|objectifs\b|date\b|identifiant\b|dur.{0,3}e\b|nombre\s+d'actions|forme\s+juridique)\s*:?", re.I)
-ENTITY_EXTRACTION_VERSION = 11
+ENTITY_EXTRACTION_VERSION = 12
 TITLE_EXTRACTION_VERSION = 3
 _ROLE = r"(?:commissaire\s+aux\s+comptes(?:\s+(?:titulaire|suppl[eé]ant))?|pr[eé]sident(?:e)?\s+directeur(?:trice)?\s+g[eé]n[eé]ral(?:e)?|directeur(?:trice)?\s+g[eé]n[eé]ral(?:e)?\s+adjoint(?:e)?|membre\s+fondateur|membre(?:\s+du\s+conseil(?:\s+d['’]administration)?)?|fondateur|fondatrice|vice\s*[-–]?\s*pr[eé]sident(?:e)?|pr[eé]sident(?:e)?(?:\s+du\s+conseil(?:\s+d['’]administration)?)?|directeur(?:trice)?(?:\s+g[eé]n[eé]ral(?:e)?)?|secr[eé]taire(?:\s+g[eé]n[eé]rale?)?|tr[eé]sori[eè]r(?:e|e)?|g[eé]rant(?:e)?|liquidateur(?:trice)?|repr[eé]sentant(?:e)?\s+l[eé]gal(?:e)?|administrateur(?:trice)?(?:\s+d[eé]l[eé]gu[eé](?:e)?)?)"
 _PERSON = re.compile(r"^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\s+(?:(?:ben|bin|bou|abou|el|al|ould|ouled|bint)\s+)?[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){1,4}$")
@@ -37,6 +37,32 @@ def _norm(text):
 
 def _fold(text):
     return "".join(c for c in unicodedata.normalize("NFKD", text.casefold()) if not unicodedata.combining(c))
+
+
+# OCR et certaines expressions régulières anciennes peuvent absorber le premier
+# mot de la phrase suivante : « Naoufel Bouzouita. En vertu … ». Cette règle ne
+# corrige que ce suffixe isolé après une ponctuation forte, lorsque la partie
+# précédente est déjà un nom de personne valide. Le passage source reste intact.
+_PARASITIC_PERSON_TAIL = re.compile(
+    r"^(?P<name>.+?)\s*[.;:]\s*(?:en|et|puis|ainsi|selon|suivant|toutefois|cependant|il|elle|les|le|la|un|une)\s*$",
+    re.I,
+)
+
+
+def nettoyer_nom_personne_extrait(value):
+    """Supprime un connecteur de phrase absorbé accidentellement par un nom."""
+    name = _norm(value).strip(" ,.;:-")
+    match = _PARASITIC_PERSON_TAIL.fullmatch(name)
+    if not match:
+        return name
+    candidate = _norm(match.group('name')).strip(" ,.;:-")
+    return candidate if _PERSON.fullmatch(candidate) else name
+
+
+def nom_personne_extraction_parasitee(value):
+    """Indique si une occurrence peut être corrigée sans interpréter la source."""
+    original = _norm(value).strip(" ,.;:-")
+    return bool(original and nettoyer_nom_personne_extrait(original) != original)
 
 
 def _organisation(text):
@@ -485,6 +511,8 @@ def _relations(text, aid, org_id, entities):
     people_spans = [(start, end) for _, _, start, end, _ in found]
     for name, role, start, end, event_type in found:
         kind = mention_types.get((start, end), 'personne')
+        if kind == 'personne':
+            name = nettoyer_nom_personne_extrait(name)
         key = (kind, _fold(name), _fold(role), event_type)
         if key in seen:
             continue
@@ -533,7 +561,7 @@ def _capital_subscriptions(text, aid, org_id, entities, existing_relations=()):
         r"\b(?:Monsieur|Madame|Mr\.?|Mme\.?|Mlle\.?|M\.?)\s+(?P<name>[^,.;]+)", re.I)
     for match in person_pattern.finditer(subscriber_list):
         raw_name = re.split(r"\s+et\s+(?=(?:aux?|à\s+la)\s+soci[eé]t[eé]s?)", match.group('name'), maxsplit=1, flags=re.I)[0]
-        name = _norm(raw_name).strip(' «»"')
+        name = nettoyer_nom_personne_extrait(_norm(raw_name).strip(' «»"'))
         if _valid_person(name):
             subscribers.append((name, 'personne'))
     companies = re.search(r"\baux?\s+soci[eé]t[eé]s?\s+(?P<list>.+)", subscriber_list, re.I | re.S)

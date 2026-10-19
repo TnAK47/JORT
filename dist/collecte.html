@@ -583,6 +583,11 @@
 <button type="button" class="button quiet job-action" data-action="maintenance_reextract_entities" data-maintenance-scope="all">Corriger les titres et compléter tous les liens</button>
 </article>
 <article>
+<h3>Corriger les noms parasités</h3>
+<p>Détecte les personnes dont le nom a absorbé un mot de la phrase suivante, par exemple « Nom. En ». Réextrait uniquement les annonces concernées, supprime l’occurrence erronée lorsqu’une occurrence corrigée est prouvée dans la même annonce, puis met à jour le regroupement. Les annonces et passages sources restent inchangés.</p>
+<button type="button" class="button quiet job-action" data-action="maintenance_clean_parasitic_extractions" data-maintenance-scope="all">Nettoyer les extractions parasitées</button>
+</article>
+<article>
 <h3>Reconstruire la restitution globale</h3>
 <p>Regroupe toutes les années déjà indexées dans la recherche et le graphe. Ne réextrait pas les PDF et ne crée pas de relation absente des bases annuelles.</p>
 <button type="button" class="button quiet job-action" data-action="maintenance_connections" data-maintenance-scope="all">Reconstruire toute la restitution</button>

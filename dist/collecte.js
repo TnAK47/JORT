@@ -63,7 +63,7 @@
   let maintenanceReport = null;
   let lastIdentityReport = '';
   const taskNames = { scan:'vérification des PDF déposés', inventory:'mise à jour de l’inventaire', download:'téléchargement des journaux', download_one:'relance d’un journal PDF', index:'extraction et indexation des annonces', index_one:'reprise de l’analyse d’un journal', maintenance_check:'contrôle de la base', maintenance_repair:'réparation de la base', maintenance_connections:'reconstruction de la restitution', maintenance_deduplicate_announcements:'nettoyage des annonces dupliquées', maintenance_merge_duplicates:'fusion des identités certaines', maintenance_merge_person:'fusion manuelle de Selma Elloumi Rekik', maintenance_optimize:'optimisation de la base', maintenance_backup:'sauvegarde de la base', maintenance_transfer_drive:'transfert des PDF vers Drive' };
-  Object.assign(taskNames, { maintenance_reextract_entities:'correction des titres et des liens de toute la base', maintenance_merge_entities:'fusion des fiches sélectionnées', maintenance_undo_merge:'annulation de la fusion' });
+  Object.assign(taskNames, { maintenance_reextract_entities:'correction des titres et des liens de toute la base', maintenance_clean_parasitic_extractions:'nettoyage des extractions parasitées', maintenance_merge_entities:'fusion des fiches sélectionnées', maintenance_undo_merge:'annulation de la fusion' });
   function storageGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
   function storageSet(key, value) { try { localStorage.setItem(key, value); } catch (_) { /* stockage local indisponible */ } }
   function rememberTaskAudio(job) {
@@ -230,7 +230,7 @@
     if (maintenanceReport && (Date.parse(maintenanceReport.finished_at || maintenanceReport.started_at) || 0) > (Date.parse(report.finished_at || report.started_at) || 0)) return;
     maintenanceReport = report;
     const modes = { check:'Contrôle', repair:'Réparation', connections:'Restitution globale', deduplicate_announcements:'Nettoyage des annonces dupliquées', merge_duplicates:'Fusion des identités certaines', merge_person:'Fusion manuelle de personne', optimize:'Optimisation', backup:'Sauvegarde', transfer_drive:'Transfert Drive' };
-    Object.assign(modes, { reextract_entities:'Titres et liens complétés', merge_entities:'Fusion des fiches', undo_merge:'Annulation de fusion' });
+    Object.assign(modes, { reextract_entities:'Titres et liens complétés', clean_parasitic_extractions:'Extractions parasitées corrigées', merge_entities:'Fusion des fiches', undo_merge:'Annulation de fusion' });
     const states = { running:'En cours', done:'Terminé', failed:'Échec', error:'Échec', cancelled:'Arrêté' };
     const issues = report.issues || [];
     const sizes = report.sizes || [];
@@ -244,7 +244,8 @@
     el('download-report').disabled = false;
     if (report.extraction) {
       const summary = document.createElement('p');
-      summary.textContent = `${count(report.extraction.announcements)} annonces réexaminées · ${count(report.extraction.reused)} déjà corrigées · ${count(report.extraction.corrected_titles)} titres corrigés · ${count(report.extraction.added_entities)} entités et ${count(report.extraction.added_relations)} liens ajoutés · ${count(report.extraction.failures)} annonces à reprendre. Les annonces originales sont inchangées.`;
+      const parasiteSummary = Number(report.extraction.parasitic_occurrences_removed || 0) ? ` · ${count(report.extraction.parasitic_occurrences_removed)} occurrence(s) parasitée(s) supprimée(s)` : '';
+      summary.textContent = `${count(report.extraction.announcements)} annonces réexaminées · ${count(report.extraction.reused)} déjà corrigées · ${count(report.extraction.corrected_titles)} titres corrigés · ${count(report.extraction.added_entities)} entités et ${count(report.extraction.added_relations)} liens ajoutés${parasiteSummary} · ${count(report.extraction.failures)} annonces à reprendre. Les annonces originales sont inchangées.`;
       el('maintenance-result').appendChild(summary);
     }
     const identityReport = `${report.id}:${report.finished_at || ''}:${report.published_revision || ''}`;
